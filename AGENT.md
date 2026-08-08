@@ -34,10 +34,10 @@ Agent 自主完成从需求澄清到洞察报告的全流程用户研究：
 | 0 需求澄清 | `clarify_scope`（可选，问题已明确可跳过） | 研究背景/目标人群/核心痛点/深度 |
 | 1 研究设计 | `make_study_plan` | 研究方案（目标/对象/框架/方法），用户确认后执行 |
 | 2 信息侦察 | `scout_sources`（已实现：数据源抽象，见第六节） | 真实用户信号素材，落盘 notes/scouting.md |
-| 3 画像构建 | `search_personas` / `build_persona` | 6-8 个用户画像（先检索本地 persona 库，再增量构建） |
+| 3 画像构建 | `build_persona`（已实现） | 6-8 个结构化角色卡（名字/背景/性格/立场/说话风格），落盘 personas.json |
 | 4 组建 Panel | `create_panel` | Panel 配置（选定画像集合） |
-| 5 焦点小组讨论 | `run_discussion`（1-2 轮） | 讨论纪要 + 模式提炼（共识/分歧/立场变化/意外主题） |
-| 6 一对一访谈 | `run_interview` | 访谈记录 + 个人决策路径/情感动因 |
+| 5 焦点小组讨论 | `run_discussion`（已实现：多角色轮询） | 真实发言纪要：每个角色独立上下文互相回应，落盘 notes/discussion.md |
+| 6 一对一访谈 | `run_interview`（已实现：多角色轮询） | 逐问回答，深挖决策路径/情感动因，落盘 notes/interviews.md |
 | 7 洞察报告 | `generate_report` | 报告（脱节点分析 + 需求优先级 + 可落地建议） |
 
 研究方法框架参考 Atypica 的成熟范式：JTBD（学生"雇用"了什么替代品完成任务）+ KANO（需求分层做优先级）。两者正是"主观因素建模"的方法论——JTBD 建模选择动机（雇用逻辑），KANO 建模需求层次（必备/期望/兴奋）。框架可随研究主题更换。

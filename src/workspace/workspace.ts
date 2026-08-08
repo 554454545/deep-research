@@ -1,5 +1,6 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { PersonaSchema, type Persona } from "../persona/persona.js";
 
 // 进度表里的一行
 export interface TodoItem { 
@@ -132,6 +133,22 @@ export async function appendNote(ws: Workspace, section: string, content: string
   const file = path.join(ws.dir, "notes", `${section}.md`);
   await enqueueAppend(ws, file, `${content}\n\n`);
   return file;
+}
+
+/** 角色卡落盘 personas.json（逐卡校验，非法抛错） */
+export async function writePersonas(ws: Workspace, personas: Persona[]): Promise<void> {
+  const validated = personas.map((p) => PersonaSchema.parse(p));
+  await enqueueWrite(ws, path.join(ws.dir, "personas.json"), JSON.stringify(validated, null, 2));
+}
+
+/** 读回角色卡，文件缺失返回空数组 */
+export async function readPersonas(ws: Workspace): Promise<Persona[]> {
+  try {
+    const raw = await readFile(path.join(ws.dir, "personas.json"), "utf8");
+    return JSON.parse(raw) as Persona[];
+  } catch {
+    return [];
+  }
 }
 
 /** todo 列表的模型可读文本 */

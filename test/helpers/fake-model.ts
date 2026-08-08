@@ -78,6 +78,89 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
     ],
   },
   {
+    toolCalls: [
+      {
+        name: "build_persona",
+        input: {
+          personas: [
+            {
+              name: "考研党·阿哲",
+              background: "大三考研，每天 7:30 排队抢座，图书馆是主场",
+              traits: ["自律", "秩序感强", "争分夺秒"],
+              stance: "图书馆是战场，占座必须严格管理，安静是底线",
+              voice: "直接、语速快、带焦虑感",
+            },
+            {
+              name: "氛围派·小萌",
+              background: "大二，喜欢有审美的空间，图书馆只去打卡角",
+              traits: ["感性", "爱拍照", "易被环境影响"],
+              stance: "图书馆太空旷压抑，咖啡馆更有灵感",
+              voice: "活泼、爱用比喻",
+            },
+            {
+              name: "宿舍党·博文",
+              background: "大四计算机，双屏+机械键盘宿舍流",
+              traits: ["工具控", "怕麻烦", "效率优先"],
+              stance: "宿舍设备齐全，图书馆插座抢座太麻烦",
+              voice: "务实、爱讲装备参数",
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    toolCalls: [
+      {
+        name: "run_discussion",
+        input: {
+          personas: [
+            {
+              name: "考研党·阿哲",
+              background: "大三考研，每天 7:30 排队抢座，图书馆是主场",
+              traits: ["自律", "秩序感强"],
+              stance: "图书馆是战场，占座必须严格管理",
+              voice: "直接",
+            },
+            {
+              name: "氛围派·小萌",
+              background: "大二，喜欢有审美的空间",
+              traits: ["感性"],
+              stance: "咖啡馆更有灵感",
+              voice: "活泼",
+            },
+            {
+              name: "宿舍党·博文",
+              background: "大四计算机，宿舍设备流",
+              traits: ["效率优先"],
+              stance: "宿舍设备齐全",
+              voice: "务实",
+            },
+          ],
+          topic: "学习场所选择与图书馆的使用",
+          questions: ["你平时在哪里学习？为什么？", "图书馆哪些地方让你不想去？"],
+        },
+      },
+    ],
+  },
+  {
+    toolCalls: [
+      {
+        name: "run_interview",
+        input: {
+          persona: {
+            name: "宿舍党·博文",
+            background: "大四计算机，宿舍设备流",
+            traits: ["效率优先", "怕麻烦"],
+            stance: "宿舍设备齐全，图书馆太麻烦",
+            voice: "务实",
+          },
+          questions: ["你最后一次去图书馆是什么时候？", "什么让你决定不去？"],
+        },
+      },
+    ],
+  },
+  {
     toolCalls: Array.from({ length: 8 }, (_, i) => ({
       name: "update_todo",
       input: { index: i, completed: true },

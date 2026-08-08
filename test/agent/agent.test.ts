@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runStudy } from "../../src/agent/agent.js";
 import { createFakeModel } from "../helpers/fake-model.js";
+import { createOfflineSpeaker } from "../../src/agent/speaker.js";
 import { createCorpusSource } from "../../src/source/corpus.js";
 
 /** 语料内容需覆盖 FakeModel 默认脚本的三个搜索词（按空格分词全部命中） */
@@ -32,12 +33,16 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
       model: createFakeModel(),
       workspacesRoot: root,
       sources: [createCorpusSource(corpusDir)],
+      speaker: createOfflineSpeaker(),
       onStep: (toolName) => steps.push(toolName),
     });
 
-    // 1. 工具调用顺序：规划 → 侦察 → 8 个 todo 并行推进 → 报告
+    // 1. 工具调用顺序：规划 → 侦察 → 画像 → 讨论 → 访谈 → 8 个 todo → 报告
     assert.equal(steps[0], "make_study_plan");
     assert.equal(steps[1], "scout_sources");
+    assert.ok(steps.includes("build_persona"));
+    assert.ok(steps.includes("run_discussion"));
+    assert.ok(steps.includes("run_interview"));
     assert.equal(steps.filter((s) => s === "update_todo").length, 8);
     assert.equal(steps.at(-1), "generate_report");
 
@@ -50,6 +55,21 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     const scouting = await readFile(path.join(ws.dir, "notes", "scouting.md"), "utf8");
     assert.match(scouting, /library\.md/);
     assert.match(scouting, /占座/);
+
+    // 4. 画像结构化落盘 personas.json
+    const personas = JSON.parse(
+      await readFile(path.join(ws.dir, "personas.json"), "utf8")
+    ) as Array<{ name: string; stance: string }>;
+    assert.equal(personas.length, 3);
+    assert.ok(personas.every((p) => p.name && p.stance));
+
+    // 5. 多角色讨论与访谈真实落盘（离线发言器：每个角色按立场发言）
+    const discussion = await readFile(path.join(ws.dir, "notes", "discussion.md"), "utf8");
+    assert.match(discussion, /考研党·阿哲：/);
+    assert.match(discussion, /氛围派·小萌：/);
+    assert.match(discussion, /问题：你平时在哪里学习/);
+    const interviews = await readFile(path.join(ws.dir, "notes", "interviews.md"), "utf8");
+    assert.match(interviews, /宿舍党·博文：/);
 
     // 4. todos 全部完成（并发写不丢）
     const onDisk = JSON.parse(await readFile(path.join(ws.dir, "todos.json"), "utf8")) as Array<{

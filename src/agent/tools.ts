@@ -1,15 +1,33 @@
 import { tool } from "ai";
 import { z } from "zod";
+import type { Persona } from "../persona/persona.js";
 import type { Workspace } from "../workspace/workspace.js";
 import type { DataSource, SearchResult } from "../source/source.js";
+import { runDiscussion } from "./discussion.js";
+import type { PersonaSpeaker } from "./speaker.js";
 import {
   appendNote,
   setStatus,
   todosText,
   updateTodo,
+  writePersonas,
   writePlan,
   writeReport,
 } from "../workspace/workspace.js";
+
+/** 角色卡输入 schema（无 id，id 由工具统一生成）：build_persona / run_discussion / run_interview 共用 */
+const personaInput = z.object({
+  name: z.string().describe("画像名字"),
+  background: z.string().describe("身份背景：年级/专业/生活状态"),
+  traits: z.array(z.string()).describe("性格特征"),
+  stance: z.string().describe("对研究主题的立场/态度"),
+  voice: z.string().describe("说话风格"),
+});
+type PersonaInput = z.infer<typeof personaInput>;
+
+function toPersonas(inputs: PersonaInput[]): Persona[] {
+  return inputs.map((p, i) => ({ id: `p_${i + 1}`, ...p }));
+}
 
 /** 骨架阶段工具的统一返回：诚实声明未实现，产物先落盘笔记 */
 function skeletonResult(section: string, note: string): string {
@@ -19,10 +37,10 @@ function skeletonResult(section: string, note: string): string {
 
 /**
  * 工具注册表：8 个阶段工具。
- * 真实实现：make_study_plan / scout_sources / update_todo / generate_report；
- * 其余 4 个为骨架占位（记录输入到 notes/，返回未实现说明），保证循环完整。
+ * 真实实现：make_study_plan / scout_sources / build_persona / run_discussion / run_interview / update_todo / generate_report；
+ * create_panel 为骨架占位（记录输入到 notes/），保证循环完整。
  */
-export function createTools(ws: Workspace, sources: DataSource[]) {
+export function createTools(ws: Workspace, sources: DataSource[], speaker: PersonaSpeaker) {
   return {
     make_study_plan: tool({
       description:
@@ -118,13 +136,18 @@ export function createTools(ws: Workspace, sources: DataSource[]) {
     }),
 
     build_persona: tool({
-      description: "【骨架】构建用户画像：覆盖不同细分人群的 6-8 个画像。",
+      description:
+        "构建用户画像：给出 6-8 个覆盖不同细分人群的角色卡（背景/性格/立场/说话风格），工具校验后落盘 personas.json。画像必须基于侦察素材，覆盖不同人群维度。",
       inputSchema: z.object({
-        names: z.array(z.string()).describe("画像名单"),
+        personas: z.array(personaInput),
       }),
-      execute: async ({ names }) => {
-        await appendNote(ws, "personas", `## 画像构建（骨架）\n${names.join("、")}`);
-        return skeletonResult("personas", `已记录画像名单（${names.length} 个）`);
+      execute: async ({ personas }) => {
+        const cards = toPersonas(personas);
+        await writePersonas(ws, cards);
+        const summary = cards
+          .map((c) => `- ${c.name}（${c.background}）立场：${c.stance}`)
+          .join("\n");
+        return `已构建 ${cards.length} 个画像并落盘 personas.json：\n${summary}`;
       },
     }),
 
@@ -141,25 +164,38 @@ export function createTools(ws: Workspace, sources: DataSource[]) {
     }),
 
     run_discussion: tool({
-      description: "【骨架】焦点小组讨论：多画像围绕主题讨论，提炼共识/分歧/意外主题。",
+      description:
+        "焦点小组讨论：给出参与讨论的角色卡（从刚才构建的画像中选取）、讨论主题和问题列表。引擎会让每个角色基于自己的设定和前面的发言真实轮询发言（各说各话、互相回应），全程落盘 notes/discussion.md。",
       inputSchema: z.object({
-        round: z.number().describe("第几轮讨论"),
+        personas: z.array(personaInput).describe("参与讨论的角色卡（3-8 个）"),
         topic: z.string().describe("讨论主题"),
+        questions: z.array(z.string()).describe("讨论问题列表（按顺序逐题讨论）"),
       }),
-      execute: async ({ round, topic }) => {
-        await appendNote(ws, "discussion", `## 第 ${round} 轮讨论（骨架）\n主题：${topic}`);
-        return skeletonResult("discussion", `已记录第 ${round} 轮讨论计划`);
+      execute: async ({ personas, topic, questions }) => {
+        const full = await runDiscussion(ws, toPersonas(personas), topic, questions, speaker);
+        const preview = full.length > 3000 ? `${full.slice(0, 3000)}\n…（全文见 notes/discussion.md）` : full;
+        return `焦点小组完成：${personas.length} 人 × ${questions.length} 题，已落盘 notes/discussion.md。\n\n${preview}`;
       },
     }),
 
     run_interview: tool({
-      description: "【骨架】一对一深度访谈：挖掘个人决策路径与情感动因。",
+      description:
+        "一对一深度访谈：给出受访者角色卡和访谈问题列表，引擎会真实逐问回答（深挖决策路径与情感动因），落盘 notes/interviews.md。对低频/不去者等关键画像做。",
       inputSchema: z.object({
-        personaName: z.string().describe("受访画像"),
+        persona: personaInput.describe("受访者角色卡"),
+        questions: z.array(z.string()).describe("访谈问题列表"),
       }),
-      execute: async ({ personaName }) => {
-        await appendNote(ws, "interviews", `## 深度访谈（骨架）\n受访者：${personaName}`);
-        return skeletonResult("interviews", `已记录对 ${personaName} 的访谈计划`);
+      execute: async ({ persona, questions }) => {
+        const full = await runDiscussion(
+          ws,
+          [toPersonas([persona])[0]],
+          "一对一深度访谈",
+          questions,
+          speaker,
+          "interviews"
+        );
+        const preview = full.length > 2500 ? `${full.slice(0, 2500)}\n…（全文见 notes/interviews.md）` : full;
+        return `深度访谈完成，已落盘 notes/interviews.md。\n\n${preview}`;
       },
     }),
 

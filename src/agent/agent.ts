@@ -4,6 +4,7 @@ import { createFileLogger, createNullLogger, type Logger } from "../logger.js";
 import { getModel } from "../model/model.js";
 import { createDefaultSources, type DataSource } from "../source/index.js";
 import { createWorkspace, type Workspace } from "../workspace/workspace.js";
+import { createLLMSpeaker, type PersonaSpeaker } from "./speaker.js";
 import { createTools } from "./tools.js";
 
 export interface RunStudyOptions {
@@ -11,6 +12,8 @@ export interface RunStudyOptions {
   question: string;
   /** 模型，缺省 getModel()（真实 DeepSeek；测试传测试假模型） */
   model?: LanguageModel;
+  /** 角色发言器，缺省 LLM 实现（同一个模型扮演角色）；测试传测试版 */
+  speaker?: PersonaSpeaker;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;
   /** 数据源（侦察阶段用），缺省 本地语料库 + 360 搜索 */
@@ -33,11 +36,12 @@ const SYSTEM_PROMPT = `你是 deep-research，一个洞察与用户研究 Agent�
 
 工作方式：
 1. 第一步先调用 make_study_plan 制定研究方案（研究目标/对象/框架/方法），它会初始化 8 个阶段 todo。
-2. 第二步调用 scout_sources 做信息侦察：给出 3-5 个覆盖不同角度的搜索关键词，工具会返回真实搜索结果（必应 + 本地语料库）并落盘。后续画像构建必须基于这些真实素材。
-3. 之后按阶段推进研究：画像构建 → 组建 Panel → 焦点小组讨论 → 一对一访谈。
+2. 第二步调用 scout_sources 做信息侦察：给出 3-5 个覆盖不同角度的搜索关键词，工具会返回真实搜索结果（360 搜索 + 本地语料库）并落盘。后续画像构建必须基于这些真实素材。
+3. 第三步调用 build_persona 构建用户画像：给出 6-8 个角色卡（每个含 名字/背景/性格特征/立场/说话风格），覆盖不同人群维度，工具会落盘。
+4. 之后按阶段推进：调用 run_discussion 组织焦点小组（从画像中选 3-8 人，给出讨论主题和问题列表，引擎会让每个角色真实轮询发言、互相回应）；调用 run_interview 对关键画像做一对一深度访谈（给出受访者和问题列表，引擎逐问回答）。
    每完成一个阶段，立即调用 update_todo 把对应 todo 标记完成（index 从 0 开始）。
-4. 全部阶段完成后，调用 generate_report 生成洞察报告。
-5. 最后用中文向用户总结研究结论与核心发现。
+5. 全部阶段完成后，调用 generate_report 生成洞察报告。
+6. 最后用中文向用户总结研究结论与核心发现。
 
 研究框架建议采用 JTBD（用户"雇用"了什么替代品完成任务）+ KANO（需求优先级分层）。
 过程产物通过工具自动落盘到工作区，你只需汇报要点。`;
@@ -50,7 +54,8 @@ export async function runStudy(opts: RunStudyOptions): Promise<RunStudyResult> {
     opts.question
   );
   const sources = opts.sources ?? createDefaultSources();
-  const tools = createTools(ws, sources);
+  const speaker = opts.speaker ?? createLLMSpeaker(model);
+  const tools = createTools(ws, sources, speaker);
   const logger: Logger = opts.logDir
     ? createFileLogger(opts.logDir, path.basename(ws.dir))
     : createNullLogger();
