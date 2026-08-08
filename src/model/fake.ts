@@ -51,7 +51,7 @@ export function createFakeModel(script: FakeStep[] = DEFAULT_SCRIPT): LanguageMo
   };
 }
 
-/** 默认脚本：完整跑一遍最小研究流程（规划 → 8 阶段 todo 并行推进 → 报告） */
+/** 默认脚本：完整跑一遍最小研究流程（规划 → 侦察 → 8 阶段 todo 并行推进 → 报告） */
 export const DEFAULT_SCRIPT: FakeStep[] = [
   {
     toolCalls: [
@@ -62,6 +62,17 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
           audience: "大学生（本科生 + 研究生，覆盖高频/低频/不去者）",
           framework: "JTBD + KANO",
           methods: ["社媒侦察", "焦点小组讨论", "一对一深度访谈"],
+        },
+      },
+    ],
+  },
+  {
+    toolCalls: [
+      {
+        name: "scout_sources",
+        input: {
+          topic: "学生不去图书馆的原因与替代学习场所",
+          queries: ["大学生 为什么不去图书馆", "图书馆 自习 占座 吐槽", "宿舍 学习 替代 图书馆"],
         },
       },
     ],

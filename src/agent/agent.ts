@@ -1,6 +1,7 @@
 import path from "node:path";
 import { generateText, stepCountIs, type LanguageModel } from "ai";
 import { getModel } from "../model/model.js";
+import { createDefaultSources, type DataSource } from "../source/index.js";
 import { createWorkspace, type Workspace } from "../workspace/workspace.js";
 import { createTools } from "./tools.js";
 
@@ -11,6 +12,8 @@ export interface RunStudyOptions {
   model?: LanguageModel;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;
+  /** 数据源（侦察阶段用），缺省 本地语料库 + 免费必应 */
+  sources?: DataSource[];
   /** 工具往返封顶步数，缺省 16 */
   maxSteps?: number;
   /** 每步工具调用的进度回调（CLI 打印用） */
@@ -27,10 +30,11 @@ const SYSTEM_PROMPT = `你是 deep-research，一个洞察与用户研究 Agent�
 
 工作方式：
 1. 第一步先调用 make_study_plan 制定研究方案（研究目标/对象/框架/方法），它会初始化 8 个阶段 todo。
-2. 之后按阶段推进研究：信息侦察 → 画像构建 → 组建 Panel → 焦点小组讨论 → 一对一访谈。
+2. 第二步调用 scout_sources 做信息侦察：给出 3-5 个覆盖不同角度的搜索关键词，工具会返回真实搜索结果（必应 + 本地语料库）并落盘。后续画像构建必须基于这些真实素材。
+3. 之后按阶段推进研究：画像构建 → 组建 Panel → 焦点小组讨论 → 一对一访谈。
    每完成一个阶段，立即调用 update_todo 把对应 todo 标记完成（index 从 0 开始）。
-3. 全部阶段完成后，调用 generate_report 生成洞察报告。
-4. 最后用中文向用户总结研究结论与核心发现。
+4. 全部阶段完成后，调用 generate_report 生成洞察报告。
+5. 最后用中文向用户总结研究结论与核心发现。
 
 研究框架建议采用 JTBD（用户"雇用"了什么替代品完成任务）+ KANO（需求优先级分层）。
 过程产物通过工具自动落盘到工作区，你只需汇报要点。`;
@@ -42,7 +46,8 @@ export async function runStudy(opts: RunStudyOptions): Promise<RunStudyResult> {
     opts.workspacesRoot ?? path.join(process.cwd(), "workspaces"),
     opts.question
   );
-  const tools = createTools(ws);
+  const sources = opts.sources ?? createDefaultSources();
+  const tools = createTools(ws, sources);
 
   const result = await generateText({
     model,

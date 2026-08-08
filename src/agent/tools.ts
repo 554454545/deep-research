@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { Workspace } from "../workspace/workspace.js";
+import type { DataSource, SearchResult } from "../source/source.js";
 import {
   appendNote,
   setStatus,
@@ -18,10 +19,10 @@ function skeletonResult(section: string, note: string): string {
 
 /**
  * 工具注册表：8 个阶段工具。
- * 真实实现：make_study_plan / update_todo / generate_report；
- * 其余 5 个为骨架占位（记录输入到 notes/，返回未实现说明），保证循环完整。
+ * 真实实现：make_study_plan / scout_sources / update_todo / generate_report；
+ * 其余 4 个为骨架占位（记录输入到 notes/，返回未实现说明），保证循环完整。
  */
-export function createTools(ws: Workspace) {
+export function createTools(ws: Workspace, sources: DataSource[]) {
   return {
     make_study_plan: tool({
       description:
@@ -72,15 +73,47 @@ export function createTools(ws: Workspace) {
     }),
 
     scout_sources: tool({
-      description: "【骨架】信息侦察：采集真实用户信号（社媒/网页/本地语料）。",
+      description:
+        "信息侦察：用多个搜索关键词在数据源（免费必应搜索 + 本地语料库）采集真实用户信号，结果落盘 notes/scouting.md。调用后你会拿到真实搜索结果，后续画像构建必须基于这些素材。",
       inputSchema: z.object({
         topic: z.string().describe("侦察主题"),
-        platforms: z.array(z.string()).describe("信息源平台"),
+        queries: z.array(z.string()).describe("搜索关键词列表（3-5 个），覆盖不同角度和人群措辞"),
       }),
-      execute: async ({ topic, platforms }) => {
-        const note = `## 信息侦察（骨架）\n主题：${topic}\n平台：${platforms.join("、")}`;
+      execute: async ({ topic, queries }) => {
+        const raw: Array<SearchResult & { source: string }> = [];
+        const failures: string[] = [];
+        for (const q of queries) {
+          for (const src of sources) {
+            try {
+              const rs = await src.search(q, { limit: 5 });
+              raw.push(...rs.map((r) => ({ ...r, source: src.name })));
+            } catch (err) {
+              failures.push(`${src.name}(${q}): ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        }
+        const results = dedupeByUrl(raw);
+        const note = [
+          `## 信息侦察（${new Date().toISOString()}）`,
+          `主题：${topic}`,
+          `关键词：${queries.join(" / ")}`,
+          `来源：${sources.map((s) => s.name).join(" + ")}`,
+          "",
+          ...results.map((r) => `### ${r.title}\n- 链接：${r.url}\n- 摘要：${r.snippet}\n`),
+          failures.length ? `\n> 采集失败（已跳过）：${failures.join("；")}` : "",
+          "",
+        ].join("\n");
         await appendNote(ws, "scouting", note);
-        return skeletonResult("scouting", `已记录侦察计划（主题：${topic}）`);
+        const view = results
+          .slice(0, 12)
+          .map(
+            (r, i) =>
+              `${i + 1}. ${r.title}\n   ${truncate(r.snippet, 120)}\n   ${r.url}`
+          )
+          .join("\n");
+        return `侦察完成：${queries.length} 个关键词 × ${sources.length} 个数据源，去重后共 ${results.length} 条真实结果（已全部落盘 notes/scouting.md）。\n前 ${Math.min(results.length, 12)} 条：\n${view}\n${
+          failures.length ? `\n注意：${failures.length} 次采集失败（${failures[0]}）` : ""
+        }`;
       },
     }),
 
@@ -164,3 +197,17 @@ export function createTools(ws: Workspace) {
 
 /** 供 createTools 外部使用的类型（工具注册表） */
 export type ToolSet = ReturnType<typeof createTools>;
+
+/** 按 url 去重（取先出现的） */
+function dedupeByUrl(items: Array<SearchResult & { source: string }>): Array<SearchResult & { source: string }> {
+  const seen = new Set<string>();
+  return items.filter((r) => {
+    if (seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  });
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}

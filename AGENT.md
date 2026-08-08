@@ -28,8 +28,8 @@
 | 阶段 | 工具 | 产出 |
 |---|---|---|
 | 0 需求澄清 | `clarify_scope`（可选，问题已明确可跳过） | 研究背景/目标人群/核心痛点/深度 |
-| 1 研究设计 | `make_study_plan` | 研究方案（目标/对象/框架/方法/产出），用户确认后执行 |
-| 2 信息侦察 | `scout_sources` | 真实用户信号素材（数据源抽象，见"非目标"） |
+| 1 研究设计 | `make_study_plan` | 研究方案（目标/对象/框架/方法），用户确认后执行 |
+| 2 信息侦察 | `scout_sources`（已实现：数据源抽象，见第六节） | 真实用户信号素材，落盘 notes/scouting.md |
 | 3 画像构建 | `search_personas` / `build_persona` | 6-8 个用户画像（先检索本地 persona 库，再增量构建） |
 | 4 组建 Panel | `create_panel` | Panel 配置（选定画像集合） |
 | 5 焦点小组讨论 | `run_discussion`（1-2 轮） | 讨论纪要 + 模式提炼（共识/分歧/立场变化/意外主题） |
@@ -38,7 +38,17 @@
 
 研究方法框架参考 Atypica 的成熟范式：JTBD（学生"雇用"了什么替代品完成任务）+ KANO（需求分层做优先级）。框架可随研究主题更换。
 
-## 三、本项目的特点（与 Atypica 的差异）
+## 三、数据源
+
+侦察阶段的真实信息来源，走 DataSource 抽象（src/source/），可插拔：
+
+- **本地语料库**（corpus/ 目录 .md/.txt，全文关键词检索）：离线兜底、用户手动投放资料
+- **360 搜索**（默认联网源）：中文分词好、无反爬，实测 2026-08
+- 付费源（SerpAPI 等）后续按同一接口接入，流程代码不动
+
+免费源实测结论（2026-08，WSL 环境）：必应国内版长中文查询降级为字典页；百度无 cookie 连续请求弹安全验证；搜狗 antispider；360 可用。
+
+## 四、本项目的特点（与 Atypica 的差异）
 
 1. **单 Agent + 工具编排，不搞 Multi-Agent**：模型是唯一大脑，工具是手的延伸。用 Vercel AI SDK 工具调用 + todo 状态机驱动阶段流转，架构简单、可演进。
 2. **本地 Workspace 即状态**：研究计划、todo、画像、讨论纪要、访谈记录、报告全部落盘为文件。任一阶段可中断，下次会话加载 workspace 续跑；过程产物可 git 版本化、可人类审阅——透明研究。
@@ -47,22 +57,21 @@
 5. **离线可跑**：数据源抽象为接口（真实搜索 / 本地语料文件）、模型抽象（真实 DeepSeek / 离线确定性应答器）。无 API key 也能演示全链路。
 6. **中文场景优先**：侦察素材面向中文平台语境（小红书/知乎/微博风格语料），报告输出中文。
 
-## 四、非目标（当前明确不做，防 scope 膨胀）
+## 五、非目标（当前明确不做，防 scope 膨胀）
 
 - 不做多 Agent 编排框架 / Agent 间通信协议
 - 不做企业级能力：权限体系、多租户、受试者招募、在线 Panel 平台、可编辑报告
 - 不接真实社媒平台 API 采集（数据源走抽象接口，本地语料/搜索工具先行）
 - 不做 LLM-as-a-Judge 回归评测体系（后期可降级为轻量冒烟测试）
 
-## 五、技术栈
-
+## 六、技术栈
 - TypeScript（Node 20+），ESM
 - `ai`（Vercel AI SDK 6.x）+ `@ai-sdk/openai-compatible` → DeepSeek（openai-compatible 可换其他模型）
 - `zod` v4：结构化输出（`output: Output.object({ schema })`）
 - 存储：本地文件为主（workspaces/、personas/）；画像检索可选用 sqlite + FTS5
 - 测试：`node --import tsx --test test/*/*.test.ts`
 
-## 六、目录结构（规划）
+## 七、目录结构（规划）
 
 ```
 deep-research/
@@ -78,14 +87,14 @@ deep-research/
   AGENT.md
 ```
 
-## 七、工程约定
+## 八、工程约定
 
 - 每个功能版本改完必须：`npm run typecheck` + `npm test` 全量通过 + README 变更日志
 - 新模块/新目录必须接入 canonical 验证（根 tsconfig include 加目录、npm test 串联）
 - 模型工厂用函数懒加载，不配 key 时离线应答器兜底
 - 涉及架构/存储结构的大改动：先讲方案等明确指令，禁止直接动手
 
-## 八、已知坑（写代码前必读）
+## 九、已知坑（写代码前必读）
 
 - **DeepSeek JSON 模式**：prompt 必须含"json"字样否则 400；宽松 JSON 只保证合法不保证合 schema——prompt 里给字段结构 + 示例
 - **码点安全截断**：切片喂模型的文本用 `Array.from(text).slice(0, n).join("")`，UTF-16 slice 切到 emoji 会产生非法 UTF-8 → API 400

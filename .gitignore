@@ -4,3 +4,6 @@ data/
 *.log
 .env
 .env.local
+AGENT.md
+test/
+corpus/
