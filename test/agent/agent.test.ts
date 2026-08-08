@@ -4,7 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runStudy } from "../../src/agent/agent.js";
-import { createFakeModel } from "../../src/model/fake.js";
+import { createFakeModel } from "../helpers/fake-model.js";
 import { createCorpusSource } from "../../src/source/corpus.js";
 
 /** 语料内容需覆盖 FakeModel 默认脚本的三个搜索词（按空格分词全部命中） */
@@ -22,7 +22,7 @@ async function makeCorpusDir(): Promise<string> {
   return dir;
 }
 
-test("FakeModel 端到端：离线跑通完整研究流程（规划 → 侦察 → todo 推进 → 报告）", async () => {
+test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦察 → todo 推进 → 报告）", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "dr-run-"));
   const corpusDir = await makeCorpusDir();
   try {

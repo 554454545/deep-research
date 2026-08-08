@@ -12,14 +12,12 @@ npm install
 npm run demo
 ```
 
-运行后提示输入研究问题（必须由用户输入；也可用 `npm run demo -- "问题"` 直接传入）。
-不配 key 也能跑通全链路（加 `--offline` 离线演示）。
+运行后提示输入研究问题（必须由用户输入；也可用 `npm run demo -- "问题"` 直接传入）。运行必须有 key，无 key 时程序会提示并退出。
 
 | 命令 | 行为 |
 |---|---|
 | `npm run demo` | 交互输入研究问题 → 真实研究（联网侦察 + DeepSeek） |
 | `npm run demo -- "问题"` | 直接带问题运行 |
-| `npm run demo -- --offline` | 离线演示（不联网不花钱） |
 
 ## 常用命令
 
@@ -33,13 +31,13 @@ npm run demo
 
 ```
 src/
-  model/       # 模型工厂（懒加载，缺 key 抛明确错误）+ FakeModel 离线应答器
+  model/       # 模型工厂（懒加载，缺 key 抛明确错误）
   workspace/   # 工作区：研究计划/todo/笔记/报告 落盘与续跑
   agent/       # 主循环：工具注册 + 阶段流转
   source/      # 数据源抽象：360 搜索（联网侦察）+ 本地语料库（离线兜底）
-test/          # 镜像 src/ 路径
+test/          # 镜像 src/ 路径 + helpers（测试用假模型）
 workspaces/    # 每次研究一个目录（运行时产物，已 gitignore）
-corpus/        # 本地语料库：手动投放的资料（.md/.txt），离线侦察用
+corpus/        # 本地语料库：手动投放的资料（.md/.txt），侦察补充用
 ```
 
 ## 数据源
@@ -56,6 +54,7 @@ corpus/        # 本地语料库：手动投放的资料（.md/.txt），离线�
 
 ## 变更日志
 
+- v0.2.2 移除离线模式：运行必须有真实 key（无 key 提示退出）；FakeModel 降级为测试专用（test/helpers/）
 - v0.2.1 研究问题必须由用户输入：demo 交互式询问（readline），无输入/EOF 友好退出；保留命令行传参
 - v0.2.0 侦察真实化：数据源抽象层（360 搜索 + 本地语料库），scout_sources 从骨架变为真实联网采集
 - v0.1.0 骨架：模型工厂 + Workspace + 最小主循环（工具注册 + todo 状态机），离线 FakeModel 端到端可跑通

@@ -8,7 +8,7 @@ import { createTools } from "./tools.js";
 export interface RunStudyOptions {
   /** 研究问题（用户输入） */
   question: string;
-  /** 模型，缺省 getModel()（真实 DeepSeek；测试/离线传 FakeModel） */
+  /** 模型，缺省 getModel()（真实 DeepSeek；测试传测试假模型） */
   model?: LanguageModel;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;

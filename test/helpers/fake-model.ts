@@ -11,9 +11,9 @@ export interface FakeStep {
 }
 
 /**
- * 离线确定性应答器：实现 LanguageModelV2 接口（仅 doGenerate，doStream 抛错）。
- * 按调用次数逐轮执行脚本——不解析 prompt 内容，用于验证主循环链路，
- * 不配 key 也能跑通"规划 → todo 推进 → 报告"全流程。
+ * 测试用假模型：实现 LanguageModelV2 接口（仅 doGenerate，doStream 抛错）。
+ * 按调用次数逐轮执行脚本——不解析 prompt 内容，让端到端测试不花钱不联网。
+ * 产品运行不涉及（运行必须有真实 key），仅 test/ 使用。
  */
 export function createFakeModel(script: FakeStep[] = DEFAULT_SCRIPT): LanguageModelV2 {
   let calls = 0;
