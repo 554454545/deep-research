@@ -82,6 +82,7 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     assert.match(reportText, /## 策略建议/);
     assert.match(reportText, /\*\*P1 立即\*\*：/);
     assert.match(reportText, /## 用户原声/);
+    assert.doesNotMatch(reportText, /\[ \] 洞察报告/, "报告生成后洞察报告 todo 必须已完成");
 
     // 4. todos 全部完成（并发写不丢）
     const onDisk = JSON.parse(await readFile(path.join(ws.dir, "todos.json"), "utf8")) as Array<{

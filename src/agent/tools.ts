@@ -271,6 +271,11 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
       execute: async (input) => {
         const { title, summary, coreQuestions, findings, personas, needs, recommendations, quotes } =
           input;
+        // 报告生成 = 洞察报告阶段完成：先把最后一项 todo 标记完成（模型可能先调 report 后标 todo）
+        const lastIndex = ws.todos.length - 1;
+        if (!ws.todos[lastIndex].completed) {
+          await updateTodo(ws, lastIndex, true);
+        }
         const report = [
           `# ${title}`,
           "",
