@@ -1,0 +1,6 @@
+node_modules/
+workspaces/
+data/
+*.log
+.env
+.env.local

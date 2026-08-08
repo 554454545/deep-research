@@ -1,0 +1,23 @@
+{
+  "name": "deep-research",
+  "version": "0.1.0",
+  "description": "洞察与用户研究 Agent：输入一个问题，自主完成用户研究全流程，输出洞察报告",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*/*.test.ts",
+    "demo": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.64",
+    "ai": "^6.0.246",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "^3.0.14",
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.11",
+    "typescript": "^5.9.3"
+  }
+}

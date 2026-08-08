@@ -1,0 +1,94 @@
+# AGENT.md — deep-research
+
+洞察与用户研究 Agent（个人轻量版）。
+
+形态参考：特赞 Atypica（企业级用户研究 Agent）。本项目**只参考其研究方法论与工作流形态**，不复制其企业级能力（权限体系、受试者招募、在线 Panel 平台、Eval 闭环等）。定位是个人可维护、可续跑、低成本运行的本地版。
+
+---
+
+## 一、总体目标
+
+用户输入一个问题（如"为什么当代学生不再走进图书馆了"），Agent 自主完成从需求澄清到洞察报告的全流程用户研究：
+
+```
+输入：一个研究问题
+  ↓
+需求澄清（可选）→ 研究设计 → 信息侦察 → 画像构建
+  → 组建 Panel → 焦点小组讨论（模拟）→ 一对一深度访谈（模拟）
+  → 深度洞察报告
+输出：结构化洞察报告（markdown，含研究过程产物与依据）
+```
+
+核心价值：把"用户研究"这件需要几天、找真人受访者、花预算的事，压缩成一次对话——用 AI 模拟多类用户，产出可落地的洞察与建议。
+
+## 二、核心工作流（阶段即工具）
+
+每个阶段对应一个工具调用，模型通过工具调用推进研究，todo 列表驱动阶段流转：
+
+| 阶段 | 工具 | 产出 |
+|---|---|---|
+| 0 需求澄清 | `clarify_scope`（可选，问题已明确可跳过） | 研究背景/目标人群/核心痛点/深度 |
+| 1 研究设计 | `make_study_plan` | 研究方案（目标/对象/框架/方法/产出），用户确认后执行 |
+| 2 信息侦察 | `scout_sources` | 真实用户信号素材（数据源抽象，见"非目标"） |
+| 3 画像构建 | `search_personas` / `build_persona` | 6-8 个用户画像（先检索本地 persona 库，再增量构建） |
+| 4 组建 Panel | `create_panel` | Panel 配置（选定画像集合） |
+| 5 焦点小组讨论 | `run_discussion`（1-2 轮） | 讨论纪要 + 模式提炼（共识/分歧/立场变化/意外主题） |
+| 6 一对一访谈 | `run_interview` | 访谈记录 + 个人决策路径/情感动因 |
+| 7 洞察报告 | `generate_report` | 报告（脱节点分析 + 需求优先级 + 可落地建议） |
+
+研究方法框架参考 Atypica 的成熟范式：JTBD（学生"雇用"了什么替代品完成任务）+ KANO（需求分层做优先级）。框架可随研究主题更换。
+
+## 三、本项目的特点（与 Atypica 的差异）
+
+1. **单 Agent + 工具编排，不搞 Multi-Agent**：模型是唯一大脑，工具是手的延伸。用 Vercel AI SDK 工具调用 + todo 状态机驱动阶段流转，架构简单、可演进。
+2. **本地 Workspace 即状态**：研究计划、todo、画像、讨论纪要、访谈记录、报告全部落盘为文件。任一阶段可中断，下次会话加载 workspace 续跑；过程产物可 git 版本化、可人类审阅——透明研究。
+3. **画像库本地复用**：persona 库是本地目录（personas/*.md），新研究先检索复用再增量构建，避免每次从零造人。
+4. **成本内建**：system 前缀稳定（命中上下文缓存）、每阶段只携带必要上下文（不堆全量历史）、结构化输出减少往返。目标：单次研究 token 可控。
+5. **离线可跑**：数据源抽象为接口（真实搜索 / 本地语料文件）、模型抽象（真实 DeepSeek / 离线确定性应答器）。无 API key 也能演示全链路。
+6. **中文场景优先**：侦察素材面向中文平台语境（小红书/知乎/微博风格语料），报告输出中文。
+
+## 四、非目标（当前明确不做，防 scope 膨胀）
+
+- 不做多 Agent 编排框架 / Agent 间通信协议
+- 不做企业级能力：权限体系、多租户、受试者招募、在线 Panel 平台、可编辑报告
+- 不接真实社媒平台 API 采集（数据源走抽象接口，本地语料/搜索工具先行）
+- 不做 LLM-as-a-Judge 回归评测体系（后期可降级为轻量冒烟测试）
+
+## 五、技术栈
+
+- TypeScript（Node 20+），ESM
+- `ai`（Vercel AI SDK 6.x）+ `@ai-sdk/openai-compatible` → DeepSeek（openai-compatible 可换其他模型）
+- `zod` v4：结构化输出（`output: Output.object({ schema })`）
+- 存储：本地文件为主（workspaces/、personas/）；画像检索可选用 sqlite + FTS5
+- 测试：`node --import tsx --test test/*/*.test.ts`
+
+## 六、目录结构（规划）
+
+```
+deep-research/
+  src/
+    agent/        # 主循环：工具注册、todo 状态机、阶段流转
+    tools/        # 每阶段一个工具（见工作流表）
+    model/        # 模型工厂（懒加载，缺 key 时抛明确错误）
+    workspace/    # workspace 读写、续跑恢复
+    report/       # 报告组装
+  personas/       # 画像库（本地资产，markdown）
+  workspaces/     # 每次研究一个目录：plan/notes/todos/report
+  test/           # 镜像 src/ 路径
+  AGENT.md
+```
+
+## 七、工程约定
+
+- 每个功能版本改完必须：`npm run typecheck` + `npm test` 全量通过 + README 变更日志
+- 新模块/新目录必须接入 canonical 验证（根 tsconfig include 加目录、npm test 串联）
+- 模型工厂用函数懒加载，不配 key 时离线应答器兜底
+- 涉及架构/存储结构的大改动：先讲方案等明确指令，禁止直接动手
+
+## 八、已知坑（写代码前必读）
+
+- **DeepSeek JSON 模式**：prompt 必须含"json"字样否则 400；宽松 JSON 只保证合法不保证合 schema——prompt 里给字段结构 + 示例
+- **码点安全截断**：切片喂模型的文本用 `Array.from(text).slice(0, n).join("")`，UTF-16 slice 切到 emoji 会产生非法 UTF-8 → API 400
+- **工具循环封顶**：`stopWhen: stepCountIs(N)`，否则工具报错被回喂模型可能无限重试
+- **工具并行执行**：同一步多工具调用并行，文件型写入按并发设计（临时文件撞名坑）
+- **system 不进 messages**：系统指令走 `system` 属性，多轮消息 role 仅 `user | assistant`
