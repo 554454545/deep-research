@@ -7,12 +7,11 @@ import { createWorkspace, type Workspace } from "../workspace/workspace.js";
 import { createLLMSpeaker, type PersonaSpeaker } from "./speaker.js";
 import { createTools } from "./tools.js";
 
+// 发起一次研究的配置清单
 export interface RunStudyOptions {
-  /** 研究问题（用户输入） */
   question: string;
-  /** 模型，缺省 getModel()（真实 DeepSeek；测试传测试假模型） */
   model?: LanguageModel;
-  /** 角色发言器，缺省 LLM 实现（同一个模型扮演角色）；测试传测试版 */
+  /** 谁来扮演角色 */
   speaker?: PersonaSpeaker;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;
@@ -20,12 +19,17 @@ export interface RunStudyOptions {
   sources?: DataSource[];
   /** 工具往返封顶步数，缺省 16 */
   maxSteps?: number;
-  /** 每步工具调用的进度回调（CLI 打印用） */
+  /** 每步工具调用的进度回调 */
   onStep?: (toolName: string, summary: string) => void;
   /** 日志目录：传了则每个研究写一份 JSONL 日志（logs/<工作区名>.log） */
   logDir?: string;
 }
 
+/**
+ * 一次研究跑完交给你两样东西：
+ * - ws —— 工作区对象（目录路径 + meta + todos）：研究全程的存档，report.md 也在 ws.dir 下
+ * - text —— 模型跑完所有阶段后说的最终总结（收尾那段话）
+ */
 export interface RunStudyResult {
   ws: Workspace;
   text: string;

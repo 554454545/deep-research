@@ -2,14 +2,14 @@ import { generateText } from "ai";
 import type { LanguageModel } from "ai";
 import type { Persona } from "../persona/persona.js";
 
-/** 一次发言的上下文：角色卡 + 公开讨论记录（最近几条）+ 当前问题 */
+// 一次发言的上下文：角色卡 + 公开讨论记录（最近几条）+ 当前问题
 export interface SpeakContext {
-  persona: Persona;
-  transcript: string[];
-  question: string;
+  persona: Persona;         // 谁在说
+  transcript: string[];     // 公开讨论的记录
+  question: string;         // 当前要回答的问题
 }
 
-/** 发言器：多角色模拟的"演员"——给角色卡和上下文，返回该角色的发言 */
+// 发言器：多角色模拟的演员——给角色卡和上下文，返回该角色的发言
 export interface PersonaSpeaker {
   speak(ctx: SpeakContext): Promise<string>;
 }
@@ -17,7 +17,8 @@ export interface PersonaSpeaker {
 /**
  * 构造发言人 prompt（纯函数，可单测）。
  * system：角色卡全量注入（名字/背景/性格/立场/说话风格）+ 聚焦主观因素的发言要求。
- * messages：公开讨论记录（最近 6 条）+ 当前问题。
+ * messages：公开讨论记录（最近 6 条 -- 需要改）+ 当前问题。
+ * 输出：角色设定, user 消息
  */
 export function buildSpeakPrompt(ctx: SpeakContext): {
   system: string;
@@ -36,7 +37,9 @@ export function buildSpeakPrompt(ctx: SpeakContext): {
   return { system, messages: [{ role: "user", content }] };
 }
 
-/** 真实实现：同一个 LLM 按角色卡生成发言（嵌套 generateText 调用） */
+/** 
+ * 真实实现：同一个 LLM 按角色卡生成发言 
+ * 让模型能演受访者*/
 export function createLLMSpeaker(model: LanguageModel): PersonaSpeaker {
   return {
     async speak(ctx) {
@@ -47,7 +50,7 @@ export function createLLMSpeaker(model: LanguageModel): PersonaSpeaker {
   };
 }
 
-/** 测试实现：确定性模板，不调模型不花钱（返回纯发言内容，名字前缀由引擎统一加） */
+// 测试实现：确定性模板，不调模型不花钱（返回纯发言内容，名字前缀由引擎统一加）
 export function createOfflineSpeaker(): PersonaSpeaker {
   return {
     async speak(ctx) {

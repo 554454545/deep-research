@@ -71,6 +71,18 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     const interviews = await readFile(path.join(ws.dir, "notes", "interviews.md"), "utf8");
     assert.match(interviews, /宿舍党·博文：/);
 
+    // 5.5 报告结构化板块齐全（v0.4.0）
+    const reportText = await readFile(path.join(ws.dir, "report.md"), "utf8");
+    assert.match(reportText, /## 研究背景/);
+    assert.match(reportText, /## 核心研究问题/);
+    assert.match(reportText, /## 核心发现/);
+    assert.match(reportText, /### 发现 01：/);
+    assert.match(reportText, /## 需求分层（KANO）/);
+    assert.match(reportText, /基础需求 · MUST-HAVE/);
+    assert.match(reportText, /## 策略建议/);
+    assert.match(reportText, /\*\*P1 立即\*\*：/);
+    assert.match(reportText, /## 用户原声/);
+
     // 4. todos 全部完成（并发写不丢）
     const onDisk = JSON.parse(await readFile(path.join(ws.dir, "todos.json"), "utf8")) as Array<{
       completed: boolean;

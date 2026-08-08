@@ -1,4 +1,6 @@
 import { tool } from "ai";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import type { Persona } from "../persona/persona.js";
 import type { Workspace } from "../workspace/workspace.js";
@@ -22,11 +24,32 @@ const personaInput = z.object({
   traits: z.array(z.string()).describe("性格特征"),
   stance: z.string().describe("对研究主题的立场/态度"),
   voice: z.string().describe("说话风格"),
+  evidence: z
+    .array(z.string())
+    .min(1)
+    .describe("依据的侦察素材：引用 notes/scouting.md 中出现的链接或文件名（至少一条，角色必须锚定真实素材）"),
 });
 type PersonaInput = z.infer<typeof personaInput>;
 
 function toPersonas(inputs: PersonaInput[]): Persona[] {
   return inputs.map((p, i) => ({ id: `p_${i + 1}`, ...p }));
+}
+
+/** 收集 scouting.md 里的可引用素材（链接 + 链接的文件名），供 evidence 校验 */
+async function collectScoutingLinks(ws: Workspace): Promise<string[]> {
+  try {
+    const raw = await readFile(path.join(ws.dir, "notes", "scouting.md"), "utf8");
+    const links: string[] = [];
+    for (const m of raw.matchAll(/^- 链接：(.+)$/gm)) {
+      const url = m[1].trim();
+      links.push(url);
+      const base = path.basename(url.split("?")[0] ?? url);
+      if (base && base !== url) links.push(base);
+    }
+    return links;
+  } catch {
+    return [];
+  }
 }
 
 /** 骨架阶段工具的统一返回：诚实声明未实现，产物先落盘笔记 */
@@ -92,7 +115,7 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
 
     scout_sources: tool({
       description:
-        "信息侦察：用多个搜索关键词在数据源（免费必应搜索 + 本地语料库）采集真实用户信号，结果落盘 notes/scouting.md。调用后你会拿到真实搜索结果，后续画像构建必须基于这些素材。",
+        "信息侦察：用多个搜索关键词在数据源（360 搜索 + 本地语料库）采集真实用户信号，结果落盘 notes/scouting.md。调用后你会拿到真实搜索结果，后续画像构建必须基于这些素材。",
       inputSchema: z.object({
         topic: z.string().describe("侦察主题"),
         queries: z.array(z.string()).describe("搜索关键词列表（3-5 个），覆盖不同角度和人群措辞"),
@@ -142,12 +165,22 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
         personas: z.array(personaInput),
       }),
       execute: async ({ personas }) => {
+        // evidence 校验：每个角色必须引用至少一条真实侦察素材（scouting.md 无链接时跳过校验，避免死循环）
+        const links = await collectScoutingLinks(ws);
+        if (links.length > 0) {
+          const bad = personas.filter((p) =>
+            p.evidence.every((e) => !links.some((l) => e.includes(l) || l.includes(e)))
+          );
+          if (bad.length > 0) {
+            return `校验失败：以下画像未引用任何真实侦察素材（evidence 必须命中 notes/scouting.md 中的链接或文件名，至少一条）：${bad.map((b) => b.name).join("、")}。请修正 evidence 后重试。`;
+          }
+        }
         const cards = toPersonas(personas);
         await writePersonas(ws, cards);
         const summary = cards
           .map((c) => `- ${c.name}（${c.background}）立场：${c.stance}`)
           .join("\n");
-        return `已构建 ${cards.length} 个画像并落盘 personas.json：\n${summary}`;
+        return `已构建 ${cards.length} 个画像并落盘 personas.json（全部通过素材校验）：\n${summary}`;
       },
     }),
 
@@ -201,26 +234,77 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
 
     generate_report: tool({
       description:
-        "生成深度洞察报告：整合研究过程产物，输出核心发现与可落地建议。全部阶段完成后最后调用。",
+        "生成深度洞察报告：整合研究过程产物，按结构化板块输出（背景/核心问题/发现/画像/需求分层/策略建议/原声）。全部阶段完成后最后调用。",
       inputSchema: z.object({
         title: z.string().describe("报告标题"),
-        highlights: z.array(z.string()).describe("核心发现列表"),
+        summary: z.string().describe("研究背景概述（一段，交代现象与问题）"),
+        coreQuestions: z.array(z.string()).describe("核心研究问题（2-3 个）"),
+        findings: z
+          .array(
+            z.object({
+              title: z.string().describe("发现标题（一句话结论）"),
+              detail: z.string().describe("发现阐述（支撑证据与解释，100-200 字）"),
+            })
+          )
+          .min(1)
+          .describe("核心发现（3-5 条）"),
+        personas: z.array(z.string()).describe("画像摘要（每个一行：名字+类型+关键需求）"),
+        needs: z
+          .object({
+            must: z.array(z.string()).min(1).describe("基础需求 MUST-HAVE（缺失即流失）"),
+            performance: z.array(z.string()).describe("期望需求 PERFORMANCE（越好越满意）"),
+            delight: z.array(z.string()).describe("惊喜需求 DELIGHTER（超出预期）"),
+          })
+          .describe("KANO 需求分层"),
+        recommendations: z
+          .array(
+            z.object({
+              priority: z.string().describe("优先级（P1 立即 / P2 短期 / P3 中期 / P4 长期）"),
+              action: z.string().describe("具体动作"),
+              why: z.string().describe("理由/依据（可引用用户原声或素材）"),
+            })
+          )
+          .min(1)
+          .describe("策略建议（带优先级，3-5 条）"),
+        quotes: z.array(z.string()).describe("用户原声（可溯源引述，每条带角色名）"),
       }),
-      execute: async ({ title, highlights }) => {
+      execute: async (input) => {
+        const { title, summary, coreQuestions, findings, personas, needs, recommendations, quotes } =
+          input;
         const report = [
           `# ${title}`,
           "",
           `> 研究问题：${ws.meta.question}`,
           "",
+          "## 研究背景",
+          summary,
+          "",
+          "## 核心研究问题",
+          ...coreQuestions.map((q) => `- ${q}`),
+          "",
+          "## 核心发现",
+          ...findings.map((f, i) => `### 发现 ${String(i + 1).padStart(2, "0")}：${f.title}\n${f.detail}`),
+          "",
+          "## 用户画像",
+          ...personas.map((p) => `- ${p}`),
+          "",
+          "## 需求分层（KANO）",
+          "### 基础需求 · MUST-HAVE（缺失即流失）",
+          ...needs.must.map((n) => `- ${n}`),
+          "### 期望需求 · PERFORMANCE（越好越满意）",
+          ...needs.performance.map((n) => `- ${n}`),
+          "### 惊喜需求 · DELIGHTER（超出预期）",
+          ...needs.delight.map((n) => `- ${n}`),
+          "",
+          "## 策略建议",
+          ...recommendations.map((r) => `- **${r.priority}**：${r.action}（${r.why}）`),
+          "",
+          "## 用户原声",
+          ...quotes.map((q) => `- ${q}`),
+          "",
           "## 研究过程",
           "阶段产物见 notes/ 目录：",
           ws.todos.map((t) => `- ${t.completed ? "[x]" : "[ ]"} ${t.title}`).join("\n"),
-          "",
-          "## 核心发现",
-          ...highlights.map((h) => `- ${h}`),
-          "",
-          "## 建议",
-          "（待补充：接入完整研究阶段后由模型产出）",
           "",
         ].join("\n");
         await writeReport(ws, report);

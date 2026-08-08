@@ -89,6 +89,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["自律", "秩序感强", "争分夺秒"],
               stance: "图书馆是战场，占座必须严格管理，安静是底线",
               voice: "直接、语速快、带焦虑感",
+              evidence: ["library.md"],
             },
             {
               name: "氛围派·小萌",
@@ -96,6 +97,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["感性", "爱拍照", "易被环境影响"],
               stance: "图书馆太空旷压抑，咖啡馆更有灵感",
               voice: "活泼、爱用比喻",
+              evidence: ["library.md"],
             },
             {
               name: "宿舍党·博文",
@@ -103,6 +105,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["工具控", "怕麻烦", "效率优先"],
               stance: "宿舍设备齐全，图书馆插座抢座太麻烦",
               voice: "务实、爱讲装备参数",
+              evidence: ["library.md"],
             },
           ],
         },
@@ -121,6 +124,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["自律", "秩序感强"],
               stance: "图书馆是战场，占座必须严格管理",
               voice: "直接",
+              evidence: ["library.md"],
             },
             {
               name: "氛围派·小萌",
@@ -128,6 +132,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["感性"],
               stance: "咖啡馆更有灵感",
               voice: "活泼",
+              evidence: ["library.md"],
             },
             {
               name: "宿舍党·博文",
@@ -135,6 +140,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               traits: ["效率优先"],
               stance: "宿舍设备齐全",
               voice: "务实",
+              evidence: ["library.md"],
             },
           ],
           topic: "学习场所选择与图书馆的使用",
@@ -154,6 +160,7 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
             traits: ["效率优先", "怕麻烦"],
             stance: "宿舍设备齐全，图书馆太麻烦",
             voice: "务实",
+            evidence: ["library.md"],
           },
           questions: ["你最后一次去图书馆是什么时候？", "什么让你决定不去？"],
         },
@@ -172,10 +179,58 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
         name: "generate_report",
         input: {
           title: "大学图书馆到馆率提升洞察报告",
-          highlights: [
-            "图书馆在不同学生心中是五种完全不同的空间（避难所/战场/工具/社交地/精神园地）",
-            "边界感、仪式感等心理需求与插座、网速等基础设施同等重要",
-            "分区管理是调和不同用户需求的最佳策略",
+          summary:
+            "大学图书馆正面临悖论：馆舍扩建、资源扩充，但学生到馆日益稀少。学生不是不想学习，而是图书馆未能提供确定性——本报告基于真实侦察素材与多角色讨论产出。",
+          coreQuestions: [
+            "学生真正在图书馆里要完成什么任务？",
+            "是什么摩擦将学生推向替代场所？",
+            "哪些改进能最有效触达不同类型的学生？",
+          ],
+          findings: [
+            {
+              title: "学生不是不想学习，而是图书馆未能提供确定性",
+              detail:
+                "确定有电、确定有网、确定有座、确定不被打扰——这是认知资源的保护策略，而非审美偏好。",
+            },
+            {
+              title: "图书馆的竞争对手是宿舍+咖啡馆的组合体",
+              detail: "技术宅在宿舍建驾驶舱，仪式感型去咖啡馆买松弛感，分别满足控制权与氛围。",
+            },
+            {
+              title: "基础设施的修复比创意改造更能拉回学生",
+              detail: "插座损坏、网络断连、预约卡顿——每次低级失误都会导致一个学生永久转向替代方案。",
+            },
+          ],
+          personas: [
+            "考研党·阿哲（高频）：需要稳定座位、持续开放时间、绝对安静",
+            "氛围派·小萌（偶尔）：需要审美空间、宽松规则",
+            "宿舍党·博文（极少）：需要高速 Wi-Fi、充足插座",
+          ],
+          needs: {
+            must: ["稳定可用的供电插座", "全覆盖高速无线网络", "流畅的座位预约系统"],
+            performance: ["落实执行的占座管理机制", "物理隔断的分区管理"],
+            delight: ["独立预约式研修间", "咖啡角与轻食区"],
+          },
+          recommendations: [
+            {
+              priority: "P1 立即",
+              action: "建立插座损坏 24 小时响应机制",
+              why: "基础设施失守是学生流失的第一触发点",
+            },
+            {
+              priority: "P2 短期",
+              action: "上线座位超时自动释放功能",
+              why: "占座问题严重影响公平感",
+            },
+            {
+              priority: "P3 中期",
+              action: "物理隔断实现静音区/交流区分区",
+              why: "调和不同用户群体的根本张力",
+            },
+          ],
+          quotes: [
+            "图书馆免费，但来回折腾加时间卡死，每天至少浪费一小时——自习室月卡值回票价（林晓）",
+            "全覆盖高速 Wi-Fi 和插座是生存底线（王博文）",
           ],
         },
       },
