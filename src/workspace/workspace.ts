@@ -1,23 +1,31 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export interface TodoItem {
-  title: string;
-  completed: boolean;
+// 进度表里的一行
+export interface TodoItem { 
+// - title: string —— 这一行的名字（"需求澄清"、"信息侦察"…8 个阶段之一）
+// - completed: boolean —— 是否完成，true = 打勾
+  title: string;        
+  completed: boolean; 
 }
 
+// 学习状态
 export type StudyStatus = "planning" | "running" | "done";
 
+// 一次研究的档案封面
 export interface WorkspaceMeta {
   question: string;
+  // 创建时间
   createdAt: string;
+  // 研究生命周期状态
   status: StudyStatus;
 }
 
-/** 工作区 = 一次研究的全部状态（内存态 + 磁盘镜像），续跑时 loadWorkspace 恢复 */
+/** 工作区 = 一次研究的全部状态，续跑时 loadWorkspace 恢复 */
 export interface Workspace {
   dir: string;
   meta: WorkspaceMeta;
+  // 8 行进度表
   todos: TodoItem[];
 }
 

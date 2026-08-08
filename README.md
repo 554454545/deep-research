@@ -1,6 +1,6 @@
 # deep-research
 
-洞察与用户研究 Agent（个人轻量版）：输入一个问题，Agent 自主完成用户研究全流程，输出深度洞察报告。
+洞察与用户研究 Agent（个人轻量版）：输入任何**关于人类行为与决策的商业问题**，Agent 自主完成用户研究全流程，为**驱动真实选择的主观因素**建模（动机/情感/权衡/认知偏差），输出深度洞察报告。
 
 参考特赞 Atypica 的研究方法论（JTBD + KANO、画像 → Panel → 焦点小组 → 深度访谈 → 报告），做轻量本地实现。总体目标与设计见 [AGENT.md](./AGENT.md)。
 
@@ -8,12 +8,18 @@
 
 ```bash
 npm install
-# 配置 DeepSeek key（或任意 openai-compatible 服务）
-export DEEPSEEK_API_KEY=sk-xxx
-npm run demo -- "为什么当代学生不再走进图书馆了"
+# 配置 DeepSeek key：复制 .env.example 为 .env 填入（或手动建 .env 写 DEEPSEEK_API_KEY=sk-xxx）
+npm run demo
 ```
 
-不配 key 也能跑通全链路（离线确定性应答器），用于演示与测试。
+运行后提示输入研究问题（必须由用户输入；也可用 `npm run demo -- "问题"` 直接传入）。
+不配 key 也能跑通全链路（加 `--offline` 离线演示）。
+
+| 命令 | 行为 |
+|---|---|
+| `npm run demo` | 交互输入研究问题 → 真实研究（联网侦察 + DeepSeek） |
+| `npm run demo -- "问题"` | 直接带问题运行 |
+| `npm run demo -- --offline` | 离线演示（不联网不花钱） |
 
 ## 常用命令
 
@@ -50,5 +56,6 @@ corpus/        # 本地语料库：手动投放的资料（.md/.txt），离线�
 
 ## 变更日志
 
+- v0.2.1 研究问题必须由用户输入：demo 交互式询问（readline），无输入/EOF 友好退出；保留命令行传参
 - v0.2.0 侦察真实化：数据源抽象层（360 搜索 + 本地语料库），scout_sources 从骨架变为真实联网采集
 - v0.1.0 骨架：模型工厂 + Workspace + 最小主循环（工具注册 + todo 状态机），离线 FakeModel 端到端可跑通
