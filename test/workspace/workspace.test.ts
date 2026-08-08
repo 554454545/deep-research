@@ -30,6 +30,16 @@ test("createWorkspace 建目录与初始状态", async () => {
   }
 });
 
+test("工作区目录名可读：问题关键词 + 时间戳", async () => {
+  const root = await tmpRoot();
+  try {
+    const ws = await createWorkspace(root, "为什么学生不去图书馆？");
+    assert.match(path.basename(ws.dir), /^为什么学生不去图书馆-\d{6}$/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("updateTodo 修改内存并落盘，loadWorkspace 可恢复", async () => {
   const root = await tmpRoot();
   try {

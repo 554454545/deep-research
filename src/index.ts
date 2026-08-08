@@ -40,5 +40,9 @@ const { ws } = await runStudy({
   onStep: (toolName, summary) => console.log(`  → ${toolName} ${summary}`),
 });
 
-console.log(`\n研究完成。工作区：${ws.dir}`);
+console.log(`\n[deep-research] 研究完成！`);
+console.log(`问题：${question}`);
+console.log(`工作区：${ws.dir}`);
 console.log(`报告：${path.join(ws.dir, "report.md")}`);
+console.log(`过程素材：${path.join(ws.dir, "notes")}`);
+console.log(`\n查看报告：cat ${path.join(ws.dir, "report.md")}`);

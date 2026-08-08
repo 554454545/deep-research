@@ -62,10 +62,14 @@ function enqueueAppend(ws: Workspace, file: string, data: string): Promise<void>
   return next;
 }
 
-function newId(): string {
-  const ts = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  const rand = Math.random().toString(36).slice(2, 6);
-  return `${ts}_${rand}`;
+/** 目录名 = 问题关键词（去标点截断）+ 时分秒，可读可区分：如 为什么学生不去图书馆-150230 */
+function newId(question: string): string {
+  const slug =
+    question
+      .replace(/[，。？！、；：""''（）《》·\s]+/g, "")
+      .slice(0, 18) || "research";
+  const ts = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(8, 14);
+  return `${slug}-${ts}`;
 }
 
 /** 创建新工作区：目录 + meta/todos/plan/report/notes，todo 初始化为阶段清单 */
@@ -74,7 +78,7 @@ export async function createWorkspace(
   question: string,
   stages: string[] = DEFAULT_STAGES
 ): Promise<Workspace> {
-  const dir = path.join(rootDir, newId());
+  const dir = path.join(rootDir, newId(question));
   await mkdir(path.join(dir, "notes"), { recursive: true });
   const ws: Workspace = {
     dir,
