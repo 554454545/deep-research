@@ -2,6 +2,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { runStudy } from "./agent/agent.js";
+
 // 关闭 AI SDK 的兼容性 warning
 (globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
 
@@ -17,10 +18,9 @@ const argQuestion = args.filter((a) => !a.startsWith("--")).join(" ");
 // 研究问题：优先命令行参数，否则必须由用户交互输入
 let question = argQuestion;
 if (!question) {
-  // 传统 readline 接口：EOF（管道/无输入）时 close 事件兜底 resolve(null)，避免挂起
   const rl = createInterface({ input, output });
   const answer = await new Promise<string | null>((resolve) => {
-    rl.question("请输入研究问题（关于人类行为与决策的问题）：\n> ", resolve);
+    rl.question("请输入研究问题(关于人类行为与决策的问题)：\n> ", resolve);
     rl.on("close", () => resolve(null));
   });
   rl.close();
