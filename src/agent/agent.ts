@@ -1,5 +1,6 @@
 import path from "node:path";
 import { generateText, stepCountIs, type LanguageModel } from "ai";
+import { createFileLogger, createNullLogger, type Logger } from "../logger.js";
 import { getModel } from "../model/model.js";
 import { createDefaultSources, type DataSource } from "../source/index.js";
 import { createWorkspace, type Workspace } from "../workspace/workspace.js";
@@ -12,12 +13,14 @@ export interface RunStudyOptions {
   model?: LanguageModel;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;
-  /** 数据源（侦察阶段用），缺省 本地语料库 + 免费必应 */
+  /** 数据源（侦察阶段用），缺省 本地语料库 + 360 搜索 */
   sources?: DataSource[];
   /** 工具往返封顶步数，缺省 16 */
   maxSteps?: number;
   /** 每步工具调用的进度回调（CLI 打印用） */
   onStep?: (toolName: string, summary: string) => void;
+  /** 日志目录：传了则每个研究写一份 JSONL 日志（logs/<工作区名>.log） */
+  logDir?: string;
 }
 
 export interface RunStudyResult {
@@ -48,20 +51,32 @@ export async function runStudy(opts: RunStudyOptions): Promise<RunStudyResult> {
   );
   const sources = opts.sources ?? createDefaultSources();
   const tools = createTools(ws, sources);
+  const logger: Logger = opts.logDir
+    ? createFileLogger(opts.logDir, path.basename(ws.dir))
+    : createNullLogger();
 
-  const result = await generateText({
-    model,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: opts.question }],
-    tools,
-    stopWhen: stepCountIs(opts.maxSteps ?? 16),
-    onStepFinish: (step) => {
-      for (const call of step.toolCalls) {
-        const summary = JSON.stringify(call.input).slice(0, 60);
-        opts.onStep?.(call.toolName, summary);
-      }
-    },
-  });
-
-  return { ws, text: result.text };
+  logger.info("study_started", { question: opts.question, workspace: ws.dir });
+  try {
+    const result = await generateText({
+      model,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: opts.question }],
+      tools,
+      stopWhen: stepCountIs(opts.maxSteps ?? 16),
+      onStepFinish: (step) => {
+        for (const call of step.toolCalls) {
+          logger.tool(call.toolName, call.input);
+          const summary = JSON.stringify(call.input).slice(0, 60);
+          opts.onStep?.(call.toolName, summary);
+        }
+      },
+    });
+    logger.info("study_done", { workspace: ws.dir, steps: result.steps?.length });
+    return { ws, text: result.text };
+  } catch (err) {
+    logger.error("study_failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 }

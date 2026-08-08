@@ -8,3 +8,4 @@ AGENT.md
 test/
 corpus/
 .hermes/
+logs/
