@@ -135,6 +135,28 @@ export async function appendNote(ws: Workspace, section: string, content: string
   return file;
 }
 
+/** 覆盖写 notes/<section>.md（角色记忆等需要整体替换的场景），走写队列，自动建子目录，等写完再返回 */
+export async function writeNote(ws: Workspace, section: string, content: string): Promise<string> {
+  const file = path.join(ws.dir, "notes", `${section}.md`);
+  const prev = writeQueues.get(ws) ?? Promise.resolve();
+  const next = prev.then(async () => {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, content);
+  });
+  writeQueues.set(ws, next);
+  await next;
+  return file;
+}
+
+/** 读 notes/<section>.md，文件缺失返回空字符串 */
+export async function readNote(ws: Workspace, section: string): Promise<string> {
+  try {
+    return await readFile(path.join(ws.dir, "notes", `${section}.md`), "utf8");
+  } catch {
+    return "";
+  }
+}
+
 /** 角色卡落盘 personas.json（逐卡校验，非法抛错） */
 export async function writePersonas(ws: Workspace, personas: Persona[]): Promise<void> {
   const validated = personas.map((p) => PersonaSchema.parse(p));

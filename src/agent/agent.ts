@@ -1,6 +1,7 @@
 import path from "node:path";
 import { generateText, stepCountIs, type LanguageModel } from "ai";
 import { createFileLogger, createNullLogger, type Logger } from "../logger.js";
+import { createLLMSummarizer, createPersonaMemoryStore, type MemorySummarizer } from "./memory.js";
 import { getModel } from "../model/model.js";
 import { createDefaultSources, type DataSource } from "../source/index.js";
 import { createWorkspace, type Workspace } from "../workspace/workspace.js";
@@ -13,6 +14,8 @@ export interface RunStudyOptions {
   model?: LanguageModel;
   /** 谁来扮演角色 */
   speaker?: PersonaSpeaker;
+  /** 记忆摘要器（角色长期记忆），缺省 LLM 实现；测试传测试版 */
+  summarizer?: MemorySummarizer;
   /** 工作区根目录，缺省 ./workspaces */
   workspacesRoot?: string;
   /** 数据源（侦察阶段用），缺省 本地语料库 + 360 搜索 */
@@ -59,7 +62,8 @@ export async function runStudy(opts: RunStudyOptions): Promise<RunStudyResult> {
   );
   const sources = opts.sources ?? createDefaultSources();
   const speaker = opts.speaker ?? createLLMSpeaker(model);
-  const tools = createTools(ws, sources, speaker);
+  const memory = createPersonaMemoryStore(ws, opts.summarizer ?? createLLMSummarizer(model));
+  const tools = createTools(ws, sources, speaker, memory);
   const logger: Logger = opts.logDir
     ? createFileLogger(opts.logDir, path.basename(ws.dir))
     : createNullLogger();

@@ -2,11 +2,12 @@ import { generateText } from "ai";
 import type { LanguageModel } from "ai";
 import type { Persona } from "../persona/persona.js";
 
-// 一次发言的上下文：角色卡 + 公开讨论记录（最近几条）+ 当前问题
+// 一次发言的上下文：角色卡 + 公开讨论记录（最近几条）+ 当前问题 + 角色自己的记忆
 export interface SpeakContext {
   persona: Persona;         // 谁在说
   transcript: string[];     // 公开讨论的记录
   question: string;         // 当前要回答的问题
+  memory?: string;          // 该角色自己的长期记忆（私密），可选
 }
 
 // 发言器：多角色模拟的演员——给角色卡和上下文，返回该角色的发言
@@ -30,8 +31,11 @@ export function buildSpeakPrompt(ctx: SpeakContext): {
     `性格：${persona.traits.join("、")}。`,
     `你对本次讨论的态度：${persona.stance}。`,
     `说话风格：${persona.voice}。`,
-    `你正在参加一场焦点小组讨论，请以第一人称发言（80-200 字）。基于自己的真实情况，讲清你的动机、情感与权衡——为什么这么选、什么在推动你的决定。可以回应别人刚才说的话，绝不要说"作为AI"之类的话。`,
-  ].join("\n");
+    ctx.memory ? `你的记忆（之前说过的话、经历过的讨论）：\n${ctx.memory}` : "",
+    `你正在参加一场焦点小组讨论，请以第一人称发言（80-200 字）。基于自己的真实情况，讲清你的动机、情感与权衡——为什么这么选、什么在推动你的决定。可以回应别人刚才说的话，也可以呼应你自己之前的立场，绝不要说"作为AI"之类的话。`,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const history = transcript.slice(-6).join("\n");
   const content = `${history ? `讨论记录：\n${history}\n\n` : ""}当前问题：${question}\n请以${persona.name}的身份发言。`;
   return { system, messages: [{ role: "user", content }] };

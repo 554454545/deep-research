@@ -7,6 +7,7 @@ import type { Persona } from "../persona/persona.js";
 import type { Workspace } from "../workspace/workspace.js";
 import type { DataSource, SearchResult } from "../source/source.js";
 import { runDiscussion } from "./discussion.js";
+import type { PersonaMemoryStore } from "./memory.js";
 import type { PersonaSpeaker } from "./speaker.js";
 import {
   appendNote,
@@ -59,7 +60,12 @@ function skeletonResult(section: string, note: string): string {
  * 真实实现：make_study_plan / scout_sources / build_persona / run_discussion / run_interview / update_todo / generate_report；
  * create_panel 为骨架占位（记录输入到 notes/），保证循环完整。
  */
-export function createTools(ws: Workspace, sources: DataSource[], speaker: PersonaSpeaker) {
+export function createTools(
+  ws: Workspace,
+  sources: DataSource[],
+  speaker: PersonaSpeaker,
+  memory?: PersonaMemoryStore
+) {
   return {
     make_study_plan: tool({
       description:
@@ -212,7 +218,7 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
         questions: z.array(z.string()).describe("讨论问题列表（按顺序逐题讨论）"),
       }),
       execute: async ({ personas, topic, questions }) => {
-        const full = await runDiscussion(ws, toPersonas(personas), topic, questions, speaker);
+        const full = await runDiscussion(ws, toPersonas(personas), topic, questions, speaker, "discussion", memory);
         const preview = full.length > 3000 ? `${full.slice(0, 3000)}\n…（全文见 notes/discussion.md）` : full;
         return `焦点小组完成：${personas.length} 人 × ${questions.length} 题，已落盘 notes/discussion.md。\n\n${preview}`;
       },
@@ -232,7 +238,8 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
           "一对一深度访谈",
           questions,
           speaker,
-          "interviews"
+          "interviews",
+          memory
         );
         const preview = full.length > 2500 ? `${full.slice(0, 2500)}\n…（全文见 notes/interviews.md）` : full;
         return `深度访谈完成，已落盘 notes/interviews.md。\n\n${preview}`;

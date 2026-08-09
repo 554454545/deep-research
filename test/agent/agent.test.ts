@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { runStudy } from "../../src/agent/agent.js";
 import { createFakeModel } from "../helpers/fake-model.js";
 import { createOfflineSpeaker } from "../../src/agent/speaker.js";
+import { createOfflineSummarizer } from "../../src/agent/memory.js";
 import { createCorpusSource } from "../../src/source/corpus.js";
 
 /** 语料内容需覆盖 FakeModel 默认脚本的三个搜索词（按空格分词全部命中） */
@@ -34,6 +35,7 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
       workspacesRoot: root,
       sources: [createCorpusSource(corpusDir)],
       speaker: createOfflineSpeaker(),
+      summarizer: createOfflineSummarizer(),
       onStep: (toolName) => steps.push(toolName),
     });
 
@@ -78,7 +80,16 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     const interviews = await readFile(path.join(ws.dir, "notes", "interviews.md"), "utf8");
     assert.match(interviews, /宿舍党·博文：/);
 
-    // 5.5 报告结构化板块齐全（v0.4.0）
+    // 5.5 角色长期记忆落盘（v0.5.0）
+    const memories = await readdir(path.join(ws.dir, "notes", "persona-memory"));
+    assert.ok(memories.length >= 3, "每个参与讨论的角色都有记忆文件");
+    const memoryFile = await readFile(
+      path.join(ws.dir, "notes", "persona-memory", memories[0] as string),
+      "utf8"
+    );
+    assert.ok(memoryFile.length > 0);
+
+    // 5.6 报告结构化板块齐全（v0.4.0）
     const reportText = await readFile(path.join(ws.dir, "report.md"), "utf8");
     assert.match(reportText, /## 研究背景/);
     assert.match(reportText, /## 核心研究问题/);
