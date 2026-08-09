@@ -56,6 +56,7 @@ corpus/        # 本地语料库：手动投放的资料（.md/.txt），侦察�
 
 ## 变更日志
 
+- v0.6.0 多 Agent 交互 + 可视化报告：讨论支持 @名字 点名直接回应（A→B 对话链，落盘带回复关系）；报告自动渲染 HTML 版（封面/统计徽章/发现卡片/KANO 分层/优先级标签/原声引用，对标参考报告视觉，md 保留）；`npm run demo` 完成后自动输出 report.html
 - v0.5.0 角色长期记忆：每个角色独立记忆（notes/persona-memory/<id>.md），每轮讨论后并行 consolidate（LLM 摘要：只保留关键表态/被反驳经历/立场演化，喂自己的发言），下一轮发言前注入 prompt——角色"记得"自己说过的话，立场演化真实化（真实验证：周占座第 2 轮呼应第 1 轮"6:30 抢座"细节）
 - v0.4.1 框架补完：create_panel 真实化——从画像库（personas.json）按名字选人组建 Panel 落盘 panel.json（名字不存在打回提示），8 工具全部真实；system prompt 更新（build_persona → create_panel → 讨论/访谈）
 - v0.4.0 报告增强 + 角色锚定素材：generate_report 接收结构化板块（背景/核心问题/发现/画像/KANO 需求分层/策略建议/原声），输出对标参考报告；build_persona 角色卡新增 evidence 字段（必须引用 scouting.md 真实素材链接，未命中打回重给，素材不足跳过避免死循环）

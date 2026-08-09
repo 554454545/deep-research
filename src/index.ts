@@ -1,7 +1,9 @@
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { runStudy } from "./agent/agent.js";
+import { renderHtmlReport } from "./render/html.js";
 
 // 关闭 AI SDK 的兼容性 warning
 (globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
@@ -46,3 +48,14 @@ console.log(`工作区：${ws.dir}`);
 console.log(`报告：${path.join(ws.dir, "report.md")}`);
 console.log(`过程素材：${path.join(ws.dir, "notes")}`);
 console.log(`\n查看报告：cat ${path.join(ws.dir, "report.md")}`);
+
+// 渲染可视化 HTML 报告（对标参考报告形态；md 保留）
+try {
+  const html = await renderHtmlReport(ws.dir);
+  const htmlFile = path.join(ws.dir, "report.html");
+  await writeFile(htmlFile, html, "utf8");
+  console.log(`可视化报告：${htmlFile}`);
+  console.log(`用浏览器打开：explorer.exe ${htmlFile.replace(/\\/g, "/")}（WSL 内可直接 xdg-open）`);
+} catch (err) {
+  console.warn(`HTML 渲染跳过：${err instanceof Error ? err.message : String(err)}`);
+}
