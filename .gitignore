@@ -5,7 +5,6 @@ data/
 .env
 .env.local
 AGENT.md
-test/
 corpus/
 .hermes/
 logs/

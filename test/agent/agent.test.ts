@@ -95,6 +95,8 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     assert.match(reportText, /## 核心研究问题/);
     assert.match(reportText, /## 核心发现/);
     assert.match(reportText, /### 发现 01：/);
+    assert.match(reportText, /来源：/);
+    assert.match(reportText, /library\.md/);
     assert.match(reportText, /## 需求分层（KANO）/);
     assert.match(reportText, /基础需求 · MUST-HAVE/);
     assert.match(reportText, /## 策略建议/);

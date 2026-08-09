@@ -202,14 +202,17 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
               title: "学生不是不想学习，而是图书馆未能提供确定性",
               detail:
                 "确定有电、确定有网、确定有座、确定不被打扰——这是认知资源的保护策略，而非审美偏好。",
+              evidence: ["library.md"],
             },
             {
               title: "图书馆的竞争对手是宿舍+咖啡馆的组合体",
               detail: "技术宅在宿舍建驾驶舱，仪式感型去咖啡馆买松弛感，分别满足控制权与氛围。",
+              evidence: ["library.md"],
             },
             {
               title: "基础设施的修复比创意改造更能拉回学生",
               detail: "插座损坏、网络断连、预约卡顿——每次低级失误都会导致一个学生永久转向替代方案。",
+              evidence: ["library.md"],
             },
           ],
           personas: [

@@ -154,7 +154,10 @@ export function createTools(
               `${i + 1}. ${r.title}\n   ${truncate(r.snippet, 120)}\n   ${r.url}`
           )
           .join("\n");
-        return `侦察完成：${queries.length} 个关键词 × ${sources.length} 个数据源，去重后共 ${results.length} 条真实结果（已全部落盘 notes/scouting.md）。\n前 ${Math.min(results.length, 12)} 条：\n${view}\n${
+        if (results.length === 0) {
+          return `侦察未获取到任何素材（${queries.length} 个关键词 × ${sources.length} 个数据源，0 条结果）${failures.length ? `，采集失败：${failures[0]}` : ""}。请更换更口语化、更具体的搜索关键词（如加入"吐槽""后悔""真实经历"等用户口吻词）重试；若连续多次仍为空，说明数据源暂不可用，可降低对素材的依赖继续推进。`;
+        }
+        return `侦察完成：${queries.length} 个关键词 × ${sources.length} 个数据源，去重后共 ${results.length} 条真实结果（已全部落盘 notes/scouting.md）。\n前 ${Math.min(results.length, 12)} 条：\n${view}${
           failures.length ? `\n注意：${failures.length} 次采集失败（${failures[0]}）` : ""
         }`;
       },
@@ -258,6 +261,10 @@ export function createTools(
             z.object({
               title: z.string().describe("发现标题（一句话结论）"),
               detail: z.string().describe("发现阐述（支撑证据与解释，100-200 字）"),
+              evidence: z
+                .array(z.string())
+                .min(1)
+                .describe("依据的侦察素材：引用 notes/scouting.md 中出现的链接或文件名（至少一条，每条发现必须锚定真实素材）"),
             })
           )
           .min(1)
@@ -290,6 +297,16 @@ export function createTools(
         if (!ws.todos[lastIndex].completed) {
           await updateTodo(ws, lastIndex, true);
         }
+        // evidence 校验：每条发现必须引用至少一条真实侦察素材（scouting.md 无链接时跳过，避免死循环）
+        const links = await collectScoutingLinks(ws);
+        if (links.length > 0) {
+          const bad = findings.filter((f) =>
+            f.evidence.every((e) => !links.some((l) => e.includes(l) || l.includes(e)))
+          );
+          if (bad.length > 0) {
+            return `校验失败：以下发现的 evidence 未引用任何真实侦察素材（需命中 notes/scouting.md 中的链接或文件名，至少一条）：${bad.map((b) => b.title).join("、")}。请修正 evidence 后重试。`;
+          }
+        }
         const report = [
           `# ${title}`,
           "",
@@ -302,7 +319,10 @@ export function createTools(
           ...coreQuestions.map((q) => `- ${q}`),
           "",
           "## 核心发现",
-          ...findings.map((f, i) => `### 发现 ${String(i + 1).padStart(2, "0")}：${f.title}\n${f.detail}`),
+          ...findings.map(
+            (f, i) =>
+              `### 发现 ${String(i + 1).padStart(2, "0")}：${f.title}\n${f.detail}\n来源：${f.evidence.join("、")}`
+          ),
           "",
           "## 用户画像",
           ...personas.map((p) => `- ${p}`),

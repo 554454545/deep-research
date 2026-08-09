@@ -7,7 +7,7 @@ export interface ReportSections {
   question: string;
   background: string;
   coreQuestions: string[];
-  findings: Array<{ title: string; detail: string }>;
+  findings: Array<{ title: string; detail: string; sources: string[] }>;
   personas: string[];
   needs: { must: string[]; performance: string[]; delight: string[] };
   recommendations: string[];
@@ -31,7 +31,7 @@ export function parseReport(md: string): ReportSections {
   const lines = md.split("\n");
   let current: string = "";
   let kanoSub: "must" | "performance" | "delight" | null = null;
-  let finding: { title: string; detail: string } | null = null;
+  let finding: { title: string; detail: string; sources: string[] } | null = null;
   for (const line of lines) {
     const h2 = line.match(/^## (.+)$/);
     if (h2) {
@@ -45,7 +45,7 @@ export function parseReport(md: string): ReportSections {
     if (quote) sections.question = quote[1]!;
     const findingMatch = line.match(/^### 发现 \d+：(.+)$/);
     if (findingMatch) {
-      finding = { title: findingMatch[1]!, detail: "" };
+      finding = { title: findingMatch[1]!, detail: "", sources: [] };
       sections.findings.push(finding);
       continue;
     }
@@ -58,7 +58,14 @@ export function parseReport(md: string): ReportSections {
         if (bullet) sections.coreQuestions.push(bullet[1]!);
         break;
       case "核心发现":
-        if (finding && line.trim() && !line.startsWith("###")) finding.detail += line;
+        if (finding && line.trim() && !line.startsWith("###")) {
+          const src = line.match(/^来源：(.+)$/);
+          if (src) {
+            finding.sources = src[1]!.split(/[、,，]/).map((s) => s.trim()).filter(Boolean);
+          } else {
+            finding.detail += line;
+          }
+        }
         break;
       case "用户画像":
         if (bullet) sections.personas.push(bullet[1]!);
@@ -100,6 +107,21 @@ function priorityClass(s: string): string {
   return "p4";
 }
 
+/** notes/ 里的 md 实录（讨论/访谈）转成可折叠 HTML：## → h3、### → h4、其余 → 段落 */
+function noteToHtml(raw: string): string {
+  return raw
+    .split("\n")
+    .map((line) => {
+      const h2 = line.match(/^## (.+)$/);
+      if (h2) return `<h3 class="note-h3">${esc(h2[1]!)}</h3>`;
+      const h3 = line.match(/^### (.+)$/);
+      if (h3) return `<h4 class="note-h4">${esc(h3[1]!)}</h4>`;
+      if (!line.trim()) return "";
+      return `<p class="note-line">${esc(line)}</p>`;
+    })
+    .join("\n");
+}
+
 const CSS = `
   body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f7f7f5; color: #222; margin: 0; }
   .wrap { max-width: 920px; margin: 0 auto; padding: 0 24px 80px; }
@@ -116,6 +138,9 @@ const CSS = `
   .finding-title { font-weight: 700; font-size: 16px; line-height: 1.5; }
   .finding-title .no { color: #f5a623; margin-right: 8px; }
   .finding-detail { color: #555; font-size: 14px; line-height: 1.8; margin-top: 8px; }
+  .finding-src { margin-top: 10px; font-size: 12px; color: #999; word-break: break-all; }
+  .finding-src a { color: #3b7dd8; text-decoration: none; }
+  .finding-src a:hover { text-decoration: underline; }
   .persona { background: #fff; border-radius: 10px; padding: 12px 18px; margin-bottom: 8px; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
   .kano-row { border-radius: 10px; padding: 14px 20px; margin-bottom: 10px; font-size: 14px; line-height: 1.7; }
   .kano-must { background: #fdf0ef; border-left: 4px solid #d64541; }
@@ -127,8 +152,18 @@ const CSS = `
   .pri.p1 { background: #d64541; } .pri.p2 { background: #e67e22; } .pri.p3 { background: #3b7dd8; } .pri.p4 { background: #999; }
   .rec .body { font-size: 14px; line-height: 1.75; color: #333; }
   .quote { border-left: 3px solid #ddd; padding: 10px 18px; margin-bottom: 10px; color: #444; font-style: italic; font-size: 14px; line-height: 1.7; }
+  details { background: #fff; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  summary { cursor: pointer; padding: 16px 22px; font-weight: 700; font-size: 15px; }
+  summary:hover { color: #f5a623; }
+  .transcript { padding: 0 22px 18px; max-height: 480px; overflow-y: auto; border-top: 1px solid #f0f0f0; }
+  .note-h3 { font-size: 14px; margin: 14px 0 6px; color: #888; }
+  .note-h4 { font-size: 15px; margin: 12px 0 4px; }
+  .note-line { font-size: 14px; line-height: 1.75; margin: 6px 0; color: #333; }
+  .note-line a { color: inherit; text-decoration: none; }
+  .note-line a:hover { color: #f5a623; }
   .todo { font-size: 13px; color: #666; line-height: 1.9; }
   .todo .ok { color: #3aa76d; }
+  .quote-src { color: #aaa; font-size: 12px; font-style: normal; }
 `;
 
 /** 渲染工作区为自包含 HTML 报告，返回 HTML 字符串 */
@@ -155,11 +190,29 @@ export async function renderHtmlReport(wsDir: string): Promise<string> {
   const discussionCount = await countSpeeches("discussion.md");
   const interviewCount = await countSpeeches("interviews.md");
 
+  // 讨论/访谈实录（可折叠查看完整对话）
+  let discussionHtml = "";
+  let interviewsHtml = "";
+  try {
+    discussionHtml = noteToHtml(await readFile(path.join(wsDir, "notes", "discussion.md"), "utf8"));
+    interviewsHtml = noteToHtml(await readFile(path.join(wsDir, "notes", "interviews.md"), "utf8"));
+  } catch {
+    // notes 缺失时折叠区留空
+  }
+
   const findingsHtml = s.findings
-    .map(
-      (f, i) =>
-        `<div class="card"><div class="finding-title"><span class="no">${String(i + 1).padStart(2, "0")}</span>${esc(f.title)}</div><div class="finding-detail">${esc(f.detail)}</div></div>`
-    )
+    .map((f, i) => {
+      const srcHtml = f.sources.length
+        ? `<div class="finding-src">来源：${f.sources
+            .map((url) =>
+              url.startsWith("http")
+                ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>`
+                : esc(url)
+            )
+            .join(" · ")}</div>`
+        : "";
+      return `<div class="card"><div class="finding-title"><span class="no">${String(i + 1).padStart(2, "0")}</span>${esc(f.title)}</div><div class="finding-detail">${esc(f.detail)}</div>${srcHtml}</div>`;
+    })
     .join("\n");
   const kanoHtml = [
     { key: "must" as const, tag: "MUST-HAVE · 缺失即流失", cls: "kano-must" },
@@ -215,8 +268,15 @@ export async function renderHtmlReport(wsDir: string): Promise<string> {
   ${recHtml}
   <h2>用户原声</h2>
   ${s.quotes.map((q) => `<div class="quote">${esc(q)}</div>`).join("\n")}
-  <h2>研究过程</h2>
-  <div class="card todo">${s.todos.map((t) => `<span class="${t.startsWith("[x]") ? "ok" : ""}">${esc(t)}</span><br>`).join("")}</div>
+  <h2>研究实录（可点击展开）</h2>
+  <details>
+    <summary>焦点小组讨论（${discussionCount} 条发言，含 @点名回复链）</summary>
+    <div class="transcript">${discussionHtml}</div>
+  </details>
+  <details>
+    <summary>一对一深度访谈（${interviewCount} 条发言）</summary>
+    <div class="transcript">${interviewsHtml}</div>
+  </details>
 </div>
 </body>
 </html>`;

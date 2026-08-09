@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PersonaSchema, type Persona } from "../persona/persona.js";
 
@@ -63,14 +63,29 @@ function enqueueAppend(ws: Workspace, file: string, data: string): Promise<void>
   return next;
 }
 
-/** 目录名 = 问题关键词（去标点截断）+ 时分秒，可读可区分：如 为什么学生不去图书馆-150230 */
-function newId(question: string): string {
+/** 目录名 = 序号 + 问题关键词（去标点截断）+ 时分秒：如 3-为什么学生不去图书馆-150230，序号递增便于识别最新输出 */
+function newId(question: string, seq: number): string {
   const slug =
     question
       .replace(/[，。？！、；：""''（）《》·\s]+/g, "")
       .slice(0, 18) || "research";
   const ts = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(8, 14);
-  return `${slug}-${ts}`;
+  return `${seq}-${slug}-${ts}`;
+}
+
+/** 计算目录下一个序号：扫描现有 "<数字>-" 前缀取最大值 +1（无则 1） */
+export async function nextSeq(rootDir: string): Promise<number> {
+  try {
+    const entries = await readdir(rootDir, { withFileTypes: true });
+    let max = 0;
+    for (const e of entries) {
+      const m = e.name.match(/^(\d+)-/);
+      if (m) max = Math.max(max, Number.parseInt(m[1]!, 10));
+    }
+    return max + 1;
+  } catch {
+    return 1;
+  }
 }
 
 /** 创建新工作区：目录 + meta/todos/plan/report/notes，todo 初始化为阶段清单 */
@@ -79,7 +94,8 @@ export async function createWorkspace(
   question: string,
   stages: string[] = DEFAULT_STAGES
 ): Promise<Workspace> {
-  const dir = path.join(rootDir, newId(question));
+  const seq = await nextSeq(rootDir);
+  const dir = path.join(rootDir, newId(question, seq));
   await mkdir(path.join(dir, "notes"), { recursive: true });
   const ws: Workspace = {
     dir,

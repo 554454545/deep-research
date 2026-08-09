@@ -7,7 +7,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*/*.test.ts",
-    "demo": "tsx --env-file=.env src/index.ts"
+    "demo": "tsx --env-file=.env src/index.ts",
+    "scout": "tsx --env-file=.env src/scout.ts",
+    "test:bili": "tsx scripts/test-bili.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.64",
