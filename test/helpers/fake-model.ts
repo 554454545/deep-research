@@ -115,6 +115,17 @@ export const DEFAULT_SCRIPT: FakeStep[] = [
   {
     toolCalls: [
       {
+        name: "create_panel",
+        input: {
+          title: "高校图书馆氛围派学习者",
+          personaNames: ["考研党·阿哲", "氛围派·小萌", "宿舍党·博文"],
+        },
+      },
+    ],
+  },
+  {
+    toolCalls: [
+      {
         name: "run_discussion",
         input: {
           personas: [

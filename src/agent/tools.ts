@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { PersonaSchema } from "../persona/persona.js";
 import type { Persona } from "../persona/persona.js";
 import type { Workspace } from "../workspace/workspace.js";
 import type { DataSource, SearchResult } from "../source/source.js";
@@ -9,26 +10,21 @@ import { runDiscussion } from "./discussion.js";
 import type { PersonaSpeaker } from "./speaker.js";
 import {
   appendNote,
+  readPersonas,
   setStatus,
   todosText,
   updateTodo,
+  writePanel,
   writePersonas,
   writePlan,
   writeReport,
 } from "../workspace/workspace.js";
 
-/** 角色卡输入 schema（无 id，id 由工具统一生成）：build_persona / run_discussion / run_interview 共用 */
-const personaInput = z.object({
-  name: z.string().describe("画像名字"),
-  background: z.string().describe("身份背景：年级/专业/生活状态"),
-  traits: z.array(z.string()).describe("性格特征"),
-  stance: z.string().describe("对研究主题的立场/态度"),
-  voice: z.string().describe("说话风格"),
-  evidence: z
-    .array(z.string())
-    .min(1)
-    .describe("依据的侦察素材：引用 notes/scouting.md 中出现的链接或文件名（至少一条，角色必须锚定真实素材）"),
-});
+/**
+ * 角色卡输入 schema：从 PersonaSchema 派生（omit id）——模型提交时不带 id，
+ * id 由工具统一生成（toPersonas）。build_persona / run_discussion / run_interview 共用。
+ */
+const personaInput = PersonaSchema.omit({ id: true });
 type PersonaInput = z.infer<typeof personaInput>;
 
 function toPersonas(inputs: PersonaInput[]): Persona[] {
@@ -185,14 +181,25 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
     }),
 
     create_panel: tool({
-      description: "【骨架】组建研究 Panel：选定画像集合。",
+      description:
+        "组建研究 Panel：从已构建的画像（personas.json）中按名字选人组队，落盘 panel.json。参与后续焦点小组/访谈的角色从 Panel 成员中选取。",
       inputSchema: z.object({
-        title: z.string().describe("Panel 名称"),
-        personaNames: z.array(z.string()).describe("纳入 Panel 的画像"),
+        title: z.string().describe("Panel 名称（如：高校图书馆氛围派学习者）"),
+        personaNames: z
+          .array(z.string())
+          .min(1)
+          .describe("成员名单（必须是 build_persona 已构建画像的名字，3-8 人）"),
       }),
       execute: async ({ title, personaNames }) => {
-        await appendNote(ws, "panel", `## Panel（骨架）\n${title}\n${personaNames.join("、")}`);
-        return skeletonResult("panel", `已记录 Panel：${title}`);
+        const all = await readPersonas(ws);
+        const found = all.filter((p) => personaNames.includes(p.name));
+        const missing = personaNames.filter((n) => !all.some((p) => p.name === n));
+        if (missing.length > 0) {
+          return `组建失败：以下画像不存在（请先 build_persona 构建，或核对名字）：${missing.join("、")}。当前画像库：${all.map((p) => p.name).join("、") || "（空）"}`;
+        }
+        const panel = { title, members: found };
+        await writePanel(ws, panel);
+        return `Panel「${title}」已组建并落盘 panel.json，成员（${found.length} 人）：${found.map((p) => p.name).join("、")}。后续 run_discussion / run_interview 请从这些成员中选取。`;
       },
     }),
 
@@ -323,7 +330,7 @@ export function createTools(ws: Workspace, sources: DataSource[], speaker: Perso
 /** 供 createTools 外部使用的类型（工具注册表） */
 export type ToolSet = ReturnType<typeof createTools>;
 
-/** 按 url 去重（取先出现的） */
+// 按 url 去重 - 取先出现的
 function dedupeByUrl(items: Array<SearchResult & { source: string }>): Array<SearchResult & { source: string }> {
   const seen = new Set<string>();
   return items.filter((r) => {
@@ -333,6 +340,7 @@ function dedupeByUrl(items: Array<SearchResult & { source: string }>): Array<Sea
   });
 }
 
+// 把过长的字符串截到 n 个字符
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }

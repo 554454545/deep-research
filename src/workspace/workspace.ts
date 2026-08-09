@@ -151,6 +151,27 @@ export async function readPersonas(ws: Workspace): Promise<Persona[]> {
   }
 }
 
+/** 研究 Panel：从画像库选人组成的讨论组 */
+export interface Panel {
+  title: string;
+  members: Persona[];
+}
+
+/** Panel 落盘 panel.json */
+export async function writePanel(ws: Workspace, panel: Panel): Promise<void> {
+  await enqueueWrite(ws, path.join(ws.dir, "panel.json"), JSON.stringify(panel, null, 2));
+}
+
+/** 读回 Panel，文件缺失返回 null */
+export async function readPanel(ws: Workspace): Promise<Panel | null> {
+  try {
+    const raw = await readFile(path.join(ws.dir, "panel.json"), "utf8");
+    return JSON.parse(raw) as Panel;
+  } catch {
+    return null;
+  }
+}
+
 /** todo 列表的模型可读文本 */
 export function todosText(ws: Workspace): string {
   return ws.todos.map((t, i) => `${t.completed ? "[x]" : "[ ]"} ${i}. ${t.title}`).join("\n");

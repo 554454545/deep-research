@@ -1,12 +1,13 @@
-/** 一条搜索结果（标题/链接/摘要） */
+// 一条搜索结果
 export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
+  title: string;    // 标题
+  url: string;      // 链接
+  snippet: string;  // 摘要
 }
 
+// 搜索选项接口
 export interface SearchOptions {
-  /** 最多返回条数 */
+  // 最多返回条数 - 默认10
   limit?: number;
 }
 
@@ -16,7 +17,7 @@ export interface SearchOptions {
  * 升级付费源只新增实现并在 createDefaultSources 里切换，流程代码不动。
  */
 export interface DataSource {
-  readonly name: string;
+  readonly name: string;    // 数据源名称
   search(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
 }
 

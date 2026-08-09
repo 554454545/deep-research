@@ -56,6 +56,7 @@ corpus/        # 本地语料库：手动投放的资料（.md/.txt），侦察�
 
 ## 变更日志
 
+- v0.4.1 框架补完：create_panel 真实化——从画像库（personas.json）按名字选人组建 Panel 落盘 panel.json（名字不存在打回提示），8 工具全部真实；system prompt 更新（build_persona → create_panel → 讨论/访谈）
 - v0.4.0 报告增强 + 角色锚定素材：generate_report 接收结构化板块（背景/核心问题/发现/画像/KANO 需求分层/策略建议/原声），输出对标参考报告；build_persona 角色卡新增 evidence 字段（必须引用 scouting.md 真实素材链接，未命中打回重给，素材不足跳过避免死循环）
 - v0.3.0 多角色模拟：画像结构化角色卡（personas.json）；焦点小组/深度访谈真实多角色轮询发言（每个角色独立角色卡+上下文，互相回应，发言聚焦动机/情感/权衡）；发言器抽象（LLM 真实/测试确定性）
 - v0.2.4 运行日志：logs/<工作区名>.log JSONL（研究开始/每步工具调用/完成/失败），runStudy 支持 logDir 注入，测试用空实现不落盘

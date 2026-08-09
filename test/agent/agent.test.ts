@@ -41,6 +41,7 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     assert.equal(steps[0], "make_study_plan");
     assert.equal(steps[1], "scout_sources");
     assert.ok(steps.includes("build_persona"));
+    assert.ok(steps.includes("create_panel"));
     assert.ok(steps.includes("run_discussion"));
     assert.ok(steps.includes("run_interview"));
     assert.equal(steps.filter((s) => s === "update_todo").length, 8);
@@ -64,6 +65,12 @@ test("FakeModel 端到端：不联网跑通完整研究流程（规划 → 侦�
     assert.ok(personas.every((p) => p.name && p.stance));
 
     // 5. 多角色讨论与访谈真实落盘（离线发言器：每个角色按立场发言）
+    const panel = JSON.parse(
+      await readFile(path.join(ws.dir, "panel.json"), "utf8")
+    ) as { title: string; members: Array<{ name: string }> };
+    assert.equal(panel.members.length, 3);
+    assert.equal(panel.title, "高校图书馆氛围派学习者");
+
     const discussion = await readFile(path.join(ws.dir, "notes", "discussion.md"), "utf8");
     assert.match(discussion, /考研党·阿哲：/);
     assert.match(discussion, /氛围派·小萌：/);

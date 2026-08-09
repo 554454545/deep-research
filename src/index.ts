@@ -12,7 +12,7 @@ if (!process.env.DEEPSEEK_API_KEY) {
 }
 
 const args = process.argv.slice(2);
-// 不进入交互模式直接 -- "问题"
+// 不进入交互模式直接问  -- "问题"
 const argQuestion = args.filter((a) => !a.startsWith("--")).join(" ");
 
 // 研究问题：优先命令行参数，否则必须由用户交互输入
